@@ -92,4 +92,4 @@ class Prob(object):
         Restores the problem's state to the problem's saved state
         """
         for var in self.vars
-            var.save()
+            var.restore()
