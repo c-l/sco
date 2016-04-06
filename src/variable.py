@@ -58,9 +58,6 @@ class Variable(object):
     def save(self):
         """
         Save the current value.
-
-        TODO: remember to unit test that by modifying value you can't change the
-        value in self
         """
         self._saved_value = self._value.copy()
 
