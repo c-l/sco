@@ -52,7 +52,6 @@ class Variable(object):
         value = np.zeros(self._grb_vars.shape)
         for index, grb_var in np.ndenumerate(self._grb_vars):
             value[index] = grb_var.X
-
         self._value = value
 
     def save(self):

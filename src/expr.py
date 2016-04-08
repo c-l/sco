@@ -1,6 +1,8 @@
 import numpy as np
 import numdifftools as nd
 
+DEFAULT_TOL = 1e-4
+
 """
 Utility classes to represent expresions. Each expression defines an eval, grad,
 hess, and convexify method.
@@ -50,6 +52,8 @@ class AffExpr(Expr):
         """
         expr is Ax + b
         """
+        assert b.shape[0] == A.shape[0]
+
         self.A = A
         self.b = b
         self.x_shape = (A.shape[1], 1)
@@ -61,7 +65,7 @@ class AffExpr(Expr):
         return self.A.T
 
     def hess(self, x):
-        return 0.0
+        return np.zeros((self.x_shape[0], self.x_shape[0]))
 
 
 class QuadExpr(Expr):
@@ -74,8 +78,16 @@ class QuadExpr(Expr):
         expr is x'Qx + Ax + b
         """
         assert A.shape[0] == 1, 'Can only define scalar quadrative expressions'
-        super(QuadExpr, self).__init__(A, b)
+
+        # ensure the correct shapes for all the arguments
+        assert Q.shape[0] == Q.shape[1]
+        assert Q.shape[0] == A.shape[1]
+        assert b.shape[0] == 1
+
         self.Q = Q
+        self.A = A
+        self.b = b
+        self.x_shape = (A.shape[1], 1)
 
     def eval(self, x):
         return x.T.dot(self.Q.dot(x)) + self.A.dot(x) + self.b
@@ -146,7 +158,7 @@ class CompExpr(Expr):
         raise NotImplementedError
 
     def grad(self, x):
-        raise Exception("The gradient is not well defined for comparison
+        raise Exception("The gradient is not well defined for comparison \
             expressions")
 
     def convexify(self, x, degree=1):
@@ -232,4 +244,4 @@ class TFExpr(Expr):
     wrapper around exprs defined by a tensorflow graph. Leverages
     automated differentition.
     """
-    raise NotImplementedError
+    pass
