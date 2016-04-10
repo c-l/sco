@@ -148,11 +148,11 @@ class CompExpr(Expr):
         val: numpy array, the value that the expression is being compared to
         """
         self.expr = expr
-        self.val = val
+        self.val = val.copy()
 
-    def eval(self, x):
+    def eval(self, x, tol=DEFAULT_TOL):
         """
-        Returns 1 if the comparison holds true within some tolerace and 0
+        Returns True if the comparison holds true within some tolerace and 0
         otherwise.
         """
         raise NotImplementedError
@@ -164,7 +164,7 @@ class CompExpr(Expr):
     def convexify(self, x, degree=1):
         raise NotImplementedError
 
-class EqExpr(Expr):
+class EqExpr(CompExpr):
     """
     Equality Expression
     """
@@ -174,7 +174,8 @@ class EqExpr(Expr):
         Tests whether the expression at x is equal to self.val with tolerance
         tol.
         """
-        raise NotImplementedError
+        assert tol >= 0.0
+        return np.allclose(self.expr.eval(x), self.val, atol=tol)
 
     def convexify(self, x):
         """
@@ -187,7 +188,7 @@ class EqExpr(Expr):
         aff_expr.b = aff_expr.b - self.val
         return AbsExpr(aff_expr)
 
-class LEqExpr(Expr):
+class LEqExpr(CompExpr):
     """
     Less than or equal to expression
     """
@@ -197,7 +198,9 @@ class LEqExpr(Expr):
         Tests whether the expression at x is less than or equal to self.val with
         tolerance tol.
         """
-        raise NotImplementedError
+        assert tol >= 0.0
+        expr_val = self.expr.eval(x)
+        return np.all(expr_val <= self.val + tol*np.ones(expr_val.shape))
 
     def convexify(self, x):
         """
