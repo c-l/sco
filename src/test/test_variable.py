@@ -15,6 +15,13 @@ class TestVariable(unittest.TestCase):
         self.assertEqual(var._value, None)
         self.assertEqual(var._saved_value, None)
 
+        one = np.array([1])
+        two = np.array([2])
+        var = Variable(one, two)
+        self.assertTrue(np.allclose(var._value, two))
+        two[0] = 1
+        self.assertFalse(np.allclose(var._value, two))
+
     def test_get_grb_vars(self):
         ## test to ensure that modifying returned Gurobi Variables won't modify
         ## the Gurobi variables (self._grb_vars) in the Variable class

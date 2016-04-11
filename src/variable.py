@@ -9,16 +9,21 @@ class Variable(object):
     Manages Gurobi variables by maintaining an ordering of Gurobi variables,
     """
 
-    def __init__(self, grb_vars):
+    def __init__(self, grb_vars, value=None):
         """
         _grb_vars: Numpy array of Gurobi variables. The ordering of the Gurobi
         variables must be maintained.
-        _value: current value of this variable
+        _value: Numpy array of the current value of this variable
         _saved_value: saved value of this variable
         """
         assert isinstance(grb_vars, np.ndarray)
         self._grb_vars = grb_vars.copy()
-        self._value = None
+        if value is not None:
+            assert grb_vars.shape == value.shape
+            assert isinstance(value, np.ndarray)
+            self._value = value.copy()
+        else:
+            self._value = None
         self._saved_value = None
 
     def get_grb_vars(self):
