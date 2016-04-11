@@ -4,6 +4,8 @@ from expr import AbsExpr, HingeExpr
 from expr import CompExpr, EqExpr, LEqExpr
 from expr import BoundExpr
 
+from variable import Variable
+
 import numpy as np
 
 from ipdb import set_trace as st
@@ -39,10 +41,10 @@ class TestExpr(unittest.TestCase):
                 y = f(x)
                 y_prime = fder(x)
 
-                aff_e = e.convexify(x=1, degree=1)
+                aff_e = e.convexify(x, degree=1)
+                self.assertIsInstance(aff_e, AffExpr)
                 A = aff_e.A
                 b = aff_e.b
-                x = 1
                 self.assertTrue(np.allclose(A, fder(x)))
                 self.assertTrue(np.allclose(b, f(x) - A.dot(x)))
                 self.assertTrue(np.allclose(aff_e.eval(x), f(x)))
@@ -153,6 +155,103 @@ class TestEqExpr(unittest.TestCase):
             eq_e = EqExpr(e, val)
             self.assertFalse(eq_e.eval(x, tol=0.01))
             self.assertTrue(eq_e.eval(x, tol=0.1))
+
+    def test_eq_expr_convexify(self):
+        for f, fder in fs:
+            e = Expr(f)
+            for x in xs:
+                y = f(x)
+                y_prime = fder(x)
+
+                eq_e = EqExpr(e, np.array([1.0]))
+                abs_e = eq_e.convexify(x)
+                self.assertIsInstance(abs_e, AbsExpr)
+
+                aff_e = abs_e.expr
+                A = aff_e.A
+                b = aff_e.b
+                self.assertTrue(np.allclose(A, fder(x)))
+                self.assertTrue(np.allclose(b, f(x) - A.dot(x) - 1.0))
+
+                self.assertTrue(np.allclose(abs_e.eval(x), np.absolute(y-1.0)))
+                x2 = x+1.0
+                self.assertTrue(np.allclose(abs_e.eval(x2), np.absolute(A.dot(x2)+b)))
+
+class TestLEqExpr(unittest.TestCase):
+
+    def test_leq_expr_eval(self):
+        for _ in range(N):
+            A = np.random.rand(d, d) - 0.5*np.ones((d,d))
+            b = np.random.rand(d, 1) - 0.5*np.ones((d,1))
+            x = np.random.rand(d, 1) - 0.5*np.ones((d,1))
+            y = A.dot(x) + b
+            y_prime = A.T
+            e = AffExpr(A, b)
+
+            val = e.eval(x)
+            leq_e = LEqExpr(e, val)
+            self.assertTrue(leq_e.eval(x, tol=0.0))
+            self.assertTrue(leq_e.eval(x, tol=0.01))
+
+            val = e.eval(x) + 0.1
+            leq_e = LEqExpr(e, val)
+            self.assertTrue(leq_e.eval(x, tol=0.01))
+            self.assertTrue(leq_e.eval(x, tol=0.1))
+
+            val = e.eval(x) - 0.1
+            leq_e = LEqExpr(e, val)
+            self.assertFalse(leq_e.eval(x, tol=0.01))
+            self.assertTrue(leq_e.eval(x, tol=0.1+1e-8))
+
+    def test_eq_expr_convexify(self):
+        for f, fder in fs:
+            e = Expr(f)
+            for x in xs:
+                y = f(x)
+                y_prime = fder(x)
+
+                leq_e = LEqExpr(e, np.array([1.0]))
+                hinge_e = leq_e.convexify(x)
+                self.assertIsInstance(hinge_e, HingeExpr)
+
+                aff_e = hinge_e.expr
+                A = aff_e.A
+                b = aff_e.b
+                self.assertTrue(np.allclose(A, fder(x)))
+                self.assertTrue(np.allclose(b, f(x) - A.dot(x) - 1.0))
+
+                self.assertTrue(np.allclose(hinge_e.eval(x), np.maximum(y-1.0, np.zeros(y.shape))))
+
+                x2 = x+1.0
+                self.assertTrue(np.allclose(hinge_e.eval(x2), np.maximum(A.dot(x2)+b, np.zeros(y.shape))))
+
+class TestBoundExpr(unittest.TestCase):
+
+    def test_bound_expr(self):
+        b_e = BoundExpr(1,2)
+        self.assertEqual(b_e.expr, 1)
+        self.assertEqual(b_e.var, 2)
+
+    def test_bound_expr_eval_convexify(self):
+        for f, fder in fs:
+            e = Expr(f)
+            for x in xs:
+                y = f(x)
+
+                dummy_grb_vars = np.array([1])
+                value = np.array([x])
+                v = Variable(dummy_grb_vars, value)
+
+                b_e = BoundExpr(e, v)
+                self.assertTrue(np.allclose(b_e.eval(), e.eval(x)))
+
+                cvx_b_e = b_e.convexify()
+                self.assertIsInstance(cvx_b_e, BoundExpr)
+                self.assertEqual(cvx_b_e.var, v)
+
+                cvx_e = b_e.expr.convexify(value)
+                self.assertTrue(np.allclose(cvx_e.A, cvx_b_e.expr.A))
+                self.assertTrue(np.allclose(cvx_e.b, cvx_b_e.expr.b))
 
 if __name__ == '__main__':
     unittest.main()
