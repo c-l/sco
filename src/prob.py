@@ -1,9 +1,12 @@
 import gurobipy as grb
+from expr import *
+from ipdb import set_trace as st
 
 class Prob(object):
     """
     Sequential convex programming problem. A solution is found using the l1
-    penalty method.
+    penalty method. In the this class, cvx (convex) refers to quadratic
+    objectives and linear constraints.
     """
 
     def __init__(self):
@@ -23,11 +26,18 @@ class Prob(object):
         _penalty_exprs: list of penalty term expressions
         """
         self._model = grb.Model()
-        self._vars = []
-        self._obj_exprs = []
-        self._cnt_exprs = []
-        self._quad_obj_exprs = []
+        self._vars = set()
+
+        self._cvx_obj_exprs = []
+        self._noncvx_obj_exprs = []
+        self._approx_obj_exprs = []
+
+        # convex constraints are added directly to the model so there's no
+        # need for a _cvx_cnt_exprs variable
+        self._noncvx_cnt_exprs = []
+
         self._penalty_exprs = []
+        self._grb_penalty_cnts = [] # hinge and abs value constraints
 
     def add_obj_expr(self, bound_expr):
         """
@@ -38,8 +48,12 @@ class Prob(object):
         bound_expr's var is added to self._vars so that a trust region can be
         added to var.
         """
-        self._obj_expr.append(bound_expr)
-        raise NotImplementedError
+        expr = bound_expr.expr
+        if isinstance(expr, AffExpr) or isinstance(expr, QuadExpr):
+            self._cvx_obj_exprs.append(bound_expr)
+        else:
+            self._noncvx_obj_exprs.append(bound_expr)
+        self._vars.add(bound_expr.var)
 
     def add_cnt_expr(self, bound_expr):
         """
@@ -52,6 +66,23 @@ class Prob(object):
         added to var.
         """
         raise NotImplementedError
+
+    def _expr_to_grb_expr(self, bound_expr):
+        expr = bound_expr.expr
+        var = bound_expr.var
+
+        if isinstance(expr, AffExpr):
+            return self._aff_expr_to_grb_expr(expr, var)
+        elif isinstance(expr, QuadExpr):
+            return self._quad_expr_to_grb_expr(expr, var)
+
+    def _quad_expr_to_grb_expr(self, quad_expr, var):
+        x = var.get_grb_vars()
+        return x.T.dot(quad_expr.Q.dot(x)) + quad_expr.A.dot(x) + quad_expr.b
+
+    def _aff_expr_to_grb_expr(self, aff_expr, var):
+        grb_var = var.get_grb_vars()
+        return aff_expr.A.dot(grb_var) + aff_expr.b
 
     def optimize(self):
         """
@@ -70,6 +101,16 @@ class Prob(object):
         The Gurobi constraints are the linear constraints which have already
         been added to the model when constraints were added to this problem.
         """
+        self._model.update()
+        obj_exprs = [self._expr_to_grb_expr(bound_expr) for bound_expr in self._cvx_obj_exprs]
+        for obj_expr in obj_exprs:
+            assert obj_expr.shape == (1,1)
+        obj_exprs = [obj_expr[0,0] for obj_expr in obj_exprs]
+        obj = grb.quicksum(obj_exprs)
+        self._model.setObjective(obj)
+        self._model.optimize()
+        self._update_vars()
+
         raise NotImplementedError
 
     def _add_expr_to_grb_obj(self, bound_expr):
@@ -109,14 +150,14 @@ class Prob(object):
         """
         Adds a hinge expression with var into self's Gurobi model's
         objective by creating additional Gurobi variables and constraints
-        to represent the hinge. The created Gurobi variables and 
+        to represent the hinge. The created Gurobi variables and
         constraints are saved so that they can be removed later.
         """
         raise NotImplementedError
 
     def _add_abs_expr_to_grb_model(self, abs_expr, var):
         """
-        Adds an absolute value expression with var into self's Gurobi 
+        Adds an absolute value expression with var into self's Gurobi
         model's objective by creating additional Gurobi variables and
         constraints to represent the absolute value. The created Gurobi
         variables and constraints are saved so that they can be removed
@@ -164,17 +205,24 @@ class Prob(object):
         """
         raise NotImplementedError
 
+    def _update_vars(self):
+        """
+        Updates the variables values
+        """
+        for var in self._vars:
+            var.update()
+
     def save(self):
         """
         Saves the problem's current state by saving the values of all the
         variables.
         """
-        for var in self._vars
+        for var in self._vars:
             var.save()
 
     def restore(self):
         """
         Restores the problem's state to the problem's saved state
         """
-        for var in self._vars
+        for var in self._vars:
             var.restore()
