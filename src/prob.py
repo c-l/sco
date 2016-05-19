@@ -70,13 +70,12 @@ class Prob(object):
         var = bound_expr.var
         assert isinstance(comp_expr, CompExpr)
         if isinstance(expr, AffExpr):
+            # adding constraint directly into model
+            grb_expr = self._aff_expr_to_grb_expr(expr, var)
             if isinstance(comp_expr, EqExpr):
-                grb_expr = self._aff_expr_to_grb_expr(expr, var)
                 self._add_np_array_grb_cnt(grb_expr, GRB.EQUAL, comp_expr.val)
-            # elif isinstance(expr, LEqExpr):
-            #     grb_expr, grb_cnts = self._aff_expr_to_grb_expr_and_cnt(comp_expr, var)
-            #     self._model.addConstr(grb_expr, GRB.EQUAL, comp_expr.val)
-            # add directly to model
+            elif isinstance(comp_expr, LEqExpr):
+                self._add_np_array_grb_cnt(grb_expr, GRB.LESS_EQUAL, comp_expr.val)
         else:
             self._noncvx_cnt_exprs.append(bound_expr)
         self._vars.add(var)

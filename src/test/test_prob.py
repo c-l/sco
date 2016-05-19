@@ -86,6 +86,26 @@ class TestProb(unittest.TestCase):
         prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[2]])))
 
+    def test_add_cnt_leq_aff(self):
+        quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
+
+        aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
+        comp = LEqExpr(aff, np.array([[-4]]))
+        prob = Prob()
+        model = prob._model
+        grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
+        grb_vars = np.array([[grb_var]])
+        var = Variable(grb_vars)
+        model.update()
+
+        bexpr_quad = BoundExpr(quad, var)
+        prob.add_obj_expr(bexpr_quad)
+
+        bexpr = BoundExpr(comp, var)
+        prob.add_cnt_expr(bexpr)
+
+        prob.optimize()
+        self.assertTrue(np.allclose(var.get_value(), np.array([[-4]])))
 
 if __name__ == '__main__':
     unittest.main()
