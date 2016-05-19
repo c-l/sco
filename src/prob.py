@@ -65,7 +65,25 @@ class Prob(object):
         bound_expr's var is added to self._vars so that a trust region can be
         added to var.
         """
-        raise NotImplementedError
+        comp_expr = bound_expr.expr
+        expr = comp_expr.expr
+        var = bound_expr.var
+        assert isinstance(comp_expr, CompExpr)
+        if isinstance(expr, AffExpr):
+            if isinstance(comp_expr, EqExpr):
+                grb_expr = self._aff_expr_to_grb_expr(expr, var)
+                self._add_np_array_grb_cnt(grb_expr, GRB.EQUAL, comp_expr.val)
+            # elif isinstance(expr, LEqExpr):
+            #     grb_expr, grb_cnts = self._aff_expr_to_grb_expr_and_cnt(comp_expr, var)
+            #     self._model.addConstr(grb_expr, GRB.EQUAL, comp_expr.val)
+            # add directly to model
+        else:
+            self._noncvx_cnt_exprs.append(bound_expr)
+        self._vars.add(var)
+
+    def _add_np_array_grb_cnt(self, grb_exprs, sense, val):
+        for index, grb_expr in np.ndenumerate(grb_exprs):
+            self._model.addConstr(grb_expr, sense, val[index])
 
     def _expr_to_grb_expr(self, bound_expr):
         expr = bound_expr.expr
