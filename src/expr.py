@@ -177,13 +177,14 @@ class EqExpr(CompExpr):
         assert tol >= 0.0
         return np.allclose(self.expr.eval(x), self.val, atol=tol)
 
-    def convexify(self, x):
+    def convexify(self, x, degree=1):
         """
         Returns an AbsExpr that is the l1 penalty expression, a measure of
         constraint violation.
 
         The constraint h(x) = 0 becomes |h(x)|
         """
+        assert degree == 1
         aff_expr = self.expr.convexify(x, degree=1)
         aff_expr.b = aff_expr.b - self.val
         return AbsExpr(aff_expr)
@@ -202,13 +203,14 @@ class LEqExpr(CompExpr):
         expr_val = self.expr.eval(x)
         return np.all(expr_val <= self.val + tol*np.ones(expr_val.shape))
 
-    def convexify(self, x):
+    def convexify(self, x, degree=1):
         """
         Returns a HingeExpr that is the hinge penalty expression, a measure of
         constraint violation.
 
         The constraint g(x) <= 0 becomes |g(x)|+ where |g(x)|+ = max(g(x), 0)
         """
+        assert degree == 1
         aff_expr = self.expr.convexify(x, degree=1)
         aff_expr.b = aff_expr.b - self.val
         return HingeExpr(aff_expr)
@@ -235,6 +237,7 @@ class BoundExpr(object):
         """
         Returns a convexified BoundExpr at the variable's current value.
         """
+        assert self.var.get_value() is not None
         cvx_expr = self.expr.convexify(self.var.get_value(), degree)
         return BoundExpr(cvx_expr, self.var)
 
