@@ -203,7 +203,7 @@ class TestLEqExpr(unittest.TestCase):
             self.assertFalse(leq_e.eval(x, tol=0.01))
             self.assertTrue(leq_e.eval(x, tol=0.1+1e-8))
 
-    def test_eq_expr_convexify(self):
+    def test_leq_expr_convexify(self):
         for f, fder in fs:
             e = Expr(f)
             for x in xs:
