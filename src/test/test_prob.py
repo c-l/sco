@@ -72,6 +72,47 @@ class TestProb(unittest.TestCase):
         prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[2.0]])))
 
+    def test_optimize_multidim_quad_obj(self):
+        Q = np.array([[1,0], [0,0]])
+        A = np.array([[-4, 0]])
+        quad = QuadExpr(Q, A, np.zeros((1,1)))
+        prob = Prob()
+        model = prob._model
+        grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
+        grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
+        grb_vars = np.array([[grb_var1], [grb_var2]])
+        var = Variable(grb_vars)
+
+        bexpr_quad = BoundExpr(quad, var)
+        prob.add_obj_expr(bexpr_quad)
+
+        self.assertTrue(bexpr_quad in prob._quad_obj_exprs)
+        self.assertTrue(var in prob._vars)
+
+        prob.optimize()
+        var_value = var.get_value()
+        value = np.zeros((2,1))
+        value[0,0] = 2
+        self.assertTrue(np.allclose(var_value, value))
+
+    def test_expr_to_grb_expr_w_comp_expr(self):
+        prob = Prob()
+        aff = AffExpr(-2*np.ones((1,1)), np.zeros((1,1)))
+        val = np.zeros((1,1))
+        cexpr = CompExpr(aff, val)
+        bexpr = BoundExpr(cexpr, None)
+        with self.assertRaises(Exception) as e:
+            prob._expr_to_grb_expr(bexpr)
+        self.assertTrue("Comparison" in e.exception.message)
+
+    def test_expr_to_grb_expr_w_expr(self):
+        prob = Prob()
+        expr = Expr(f)
+        bexpr = BoundExpr(f, None)
+        with self.assertRaises(Exception) as e:
+            prob._expr_to_grb_expr(bexpr)
+        self.assertTrue("Expression cannot be converted" in e.exception.message)
+
     def test_add_cnt_expr_eq_aff(self):
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = EqExpr(aff, np.array([[2]]))
@@ -196,6 +237,8 @@ class TestProb(unittest.TestCase):
         prob._model.optimize()
         var.update()
         self.assertTrue(np.allclose(var.get_value(), np.array([[-4]])))
+        # makes assumption about the construction of the Gurobi variable, needs
+        # to be changed TODO
         pos = abs_grb_expr[0,0].getVar(0).X
         neg = abs_grb_expr[0,0].getVar(1).X
         self.assertTrue(np.allclose(pos, 0.0))
