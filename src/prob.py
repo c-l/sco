@@ -6,7 +6,7 @@ from ipdb import set_trace as st
 
 class Prob(object):
     """
-    Sequential convex programming problem. A solution is found using the l1
+    Sequential convex programming problem with a scalar objective. A solution is found using the l1
     penalty method.
     """
 
@@ -99,8 +99,8 @@ class Prob(object):
         """
         Translates AffExpr, QuadExpr, HingeExpr and AbsExpr to Gurobi
         expressions and returns the corresponding Gurobi expressions and
-        constraints. If there are Gurobi constraints, an empty list is returned.
-        Otherwise, this method raises an exception.
+        constraints. If there are no Gurobi constraints, an empty list is
+        returned. Otherwise, this method raises an exception.
         """
         expr = bound_expr.expr
         var = bound_expr.var
@@ -147,7 +147,8 @@ class Prob(object):
 
     def optimize(self, penalty_coeff=0.0):
         """
-        Calls the Gurobi optimizer on the current QP approximation
+        Calls the Gurobi optimizer on the current QP approximation with a given
+        penalty coefficient.
 
         Temporary Gurobi constraints and variables from the previous optimize
         call are deleted.
