@@ -286,7 +286,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(len(prob._penalty_exprs) == 1)
         self.assertTrue(isinstance(prob._penalty_exprs[0].expr, HingeExpr))
 
-    def test_get_value(self):
+    def test_get_value_lin_constr(self):
         """
         min x^2 st. x == 4
         when convexified,
@@ -324,7 +324,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(var.get_value(), np.array([[1.0]])))
         self.assertTrue(np.allclose(prob.get_value(2.0), np.array([[7]])))
 
-    def test_get_approx_value(self):
+    def test_get_approx_value_lin_constr(self):
         """
         min x^2 st. x == 4
         when convexified,
@@ -361,6 +361,41 @@ class TestProb(unittest.TestCase):
         prob.optimize(penalty_coeff=2.0)
         self.assertTrue(np.allclose(var.get_value(), np.array([[1.0]])))
         self.assertTrue(np.allclose(prob.get_approx_value(2.0), np.array([[7]])))
+
+    def test_get_value_and_get_approx_value_nonlin_constr(self):
+        """
+        min x^2 -2x + 1 st. x^2 == 4
+        when convexified at x = 1,
+        min x^2 -2x + 1 + penalty_coeff*|2x-5|
+        when penalty_coeff == 0.5, solution is x = 1.5 and the value is 1.25
+        (according to Wolfram Alpha)
+
+        approx value should be 1.25
+        value should be 1.125
+        """
+        quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.ones((1,1)))
+        quad_cnt = QuadExpr(np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
+        eq = EqExpr(quad_cnt, np.array([[4]]))
+
+        prob = Prob()
+        model = prob._model
+
+        grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
+        grb_vars = np.array([[grb_var]])
+        var = Variable(grb_vars)
+        model.update()
+
+        obj = BoundExpr(quad, var)
+        prob.add_obj_expr(obj)
+        bexpr = BoundExpr(eq, var)
+        prob.add_cnt_expr(bexpr)
+
+        prob.optimize() # needed to set an initial value
+        prob.convexify()
+        prob.optimize(penalty_coeff=0.5)
+        self.assertTrue(np.allclose(var.get_value(), np.array([[1.5]])))
+        self.assertTrue(np.allclose(prob.get_approx_value(0.5), np.array([[1.25]])))
+        self.assertTrue(np.allclose(prob.get_value(0.5), np.array([[1.125]])))
 
     def test_pos_grb_var_manager(self):
         prob = Prob()
