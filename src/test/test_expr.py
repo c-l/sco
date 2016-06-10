@@ -49,7 +49,7 @@ class TestExpr(unittest.TestCase):
                 y_d_prime = fhess(x)
                 test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
 
-    def test_convexify(self):
+    def test_convexify_deg_1(self):
         for f, fder, _ in fs:
             e = Expr(f)
             for x in xs:
@@ -63,6 +63,28 @@ class TestExpr(unittest.TestCase):
                 self.assertTrue(np.allclose(A, fder(x)))
                 self.assertTrue(np.allclose(b, f(x) - A.dot(x)))
                 self.assertTrue(np.allclose(aff_e.eval(x), f(x)))
+
+    def test_convexify_deg_2(self):
+        for f, fder, fhess in fs:
+            e = Expr(f)
+            for x in xs:
+                x = np.array([x])
+                y = f(x)
+                y_prime = fder(x)
+                y_d_prime = fhess(x)
+
+                quad_e = e.convexify(x, degree=2)
+                self.assertIsInstance(quad_e, QuadExpr)
+                Q = quad_e.Q
+                A = quad_e.A
+                b = quad_e.b
+                self.assertTrue(np.allclose(Q, y_d_prime))
+                self.assertTrue(np.allclose(A, \
+                    y_prime -2*np.transpose(x).dot(y_d_prime)))
+                self.assertTrue(np.allclose(b, \
+                    np.array(np.transpose(x).dot(y_d_prime)).dot(x)\
+                                - y_prime.dot(x) + y))
+                self.assertTrue(np.allclose(quad_e.eval(x), y))
 
 
 class TestAffExpr(unittest.TestCase):

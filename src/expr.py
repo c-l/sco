@@ -38,8 +38,15 @@ class Expr(object):
 
         if degree == 1:
             A = self.grad(x)
-            b = self.eval(x) - A.dot(x)
+            b = - A.dot(x) + self.eval(x)
             return AffExpr(A, b)
+        elif degree == 2:
+            hess = self.hess(x)
+            grad = self.grad(x)
+            Q = hess
+            A = grad - 2*np.transpose(x).dot(hess)
+            b = np.transpose(x).dot(hess).dot(x) - grad.dot(x) + self.eval(x)
+            return QuadExpr(Q, A, b)
         else:
             raise NotImplementedError
 
