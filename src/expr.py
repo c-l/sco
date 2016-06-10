@@ -18,6 +18,7 @@ class Expr(object):
     def __init__(self, f):
         self.f = f
         self._grad = nd.Jacobian(f)
+        self._hess = nd.Hessian(f)
 
     def eval(self, x):
         return self.f(x)
@@ -26,7 +27,7 @@ class Expr(object):
         return self._grad(x)
 
     def hess(self, x):
-        raise NotImplementedError
+        return self._hess(x)
 
     def convexify(self, x, degree=1):
         """
@@ -117,6 +118,9 @@ class AbsExpr(Expr):
         """
         raise NotImplementedError
 
+    def hess(self, x):
+        raise NotImplementedError
+
 class HingeExpr(Expr):
     """
     Hinge expression
@@ -135,6 +139,9 @@ class HingeExpr(Expr):
         Since the hinge expression is not smooth, a subgradient is returned
         instead of the gradient.
         """
+        raise NotImplementedError
+
+    def hess(self, x):
         raise NotImplementedError
 
 class CompExpr(Expr):
@@ -159,6 +166,10 @@ class CompExpr(Expr):
 
     def grad(self, x):
         raise Exception("The gradient is not well defined for comparison \
+            expressions")
+
+    def hess(self, x):
+        raise Exception("The hessian is not well defined for comparison \
             expressions")
 
     def convexify(self, x, degree=1):

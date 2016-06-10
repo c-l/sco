@@ -10,8 +10,12 @@ import numpy as np
 
 from ipdb import set_trace as st
 
-fs = [(lambda x: np.array([x]), lambda x: np.array([1])),
-      (lambda x: np.array([x**2]), lambda x: np.array([2*x]))]
+fs = [(lambda x: np.array([x]), lambda x: np.array([1]),
+        lambda x: np.array([0])),
+      (lambda x: np.array([x**2]), lambda x: np.array([2*x]),
+        lambda x: np.array([2])),
+      (lambda x: np.array([x**3]), lambda x: np.array([3*x**2]),
+        lambda x: np.array([6*x]))]
 xs = [1., 2., -1., 0.]
 N = 10
 d = 10
@@ -24,18 +28,29 @@ def test_expr_val_grad(ut, e, x, y, y_prime):
     y_prime_e = np.array(e.grad(x))
     ut.assertTrue(np.allclose(y_prime_e, y_prime))
 
+def test_expr_val_grad_hess(ut, e, x, y, y_prime, y_d_prime):
+    y = np.array(y)
+    y_prime = np.array(y_prime)
+    y_e = np.array(e.eval(x))
+    ut.assertTrue(np.allclose(y_e, y))
+    y_prime_e = np.array(e.grad(x))
+    ut.assertTrue(np.allclose(y_prime_e, y_prime))
+    y_d_prime_e = np.array(e.hess(x))
+    ut.assertTrue(np.allclose(y_d_prime_e, y_d_prime))
+
 class TestExpr(unittest.TestCase):
 
     def test_expr_eval_grad(self):
-        for f, fder in fs:
+        for f, fder, fhess in fs:
             e = Expr(f)
             for x in xs:
                 y = f(x)
                 y_prime = fder(x)
-                test_expr_val_grad(self, e, x, y, y_prime)
+                y_d_prime = fhess(x)
+                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
 
     def test_convexify(self):
-        for f, fder in fs:
+        for f, fder, _ in fs:
             e = Expr(f)
             for x in xs:
                 y = f(x)
@@ -117,7 +132,7 @@ class TestHingeExpr(unittest.TestCase):
 class TestCompExpr(unittest.TestCase):
 
     def test_comp_expr(self):
-        f, fder = fs[0]
+        f, fder, _ = fs[0]
         e = Expr(f)
         val = np.array([0])
         comp_e = CompExpr(e, val)
@@ -157,7 +172,7 @@ class TestEqExpr(unittest.TestCase):
             self.assertTrue(eq_e.eval(x, tol=0.1))
 
     def test_eq_expr_convexify(self):
-        for f, fder in fs:
+        for f, fder, _ in fs:
             e = Expr(f)
             for x in xs:
                 y = f(x)
@@ -204,7 +219,7 @@ class TestLEqExpr(unittest.TestCase):
             self.assertTrue(leq_e.eval(x, tol=0.1+1e-8))
 
     def test_leq_expr_convexify(self):
-        for f, fder in fs:
+        for f, fder, _ in fs:
             e = Expr(f)
             for x in xs:
                 y = f(x)
@@ -233,7 +248,7 @@ class TestBoundExpr(unittest.TestCase):
         self.assertEqual(b_e.var, 2)
 
     def test_bound_expr_eval_convexify(self):
-        for f, fder in fs:
+        for f, fder, _ in fs:
             e = Expr(f)
             for x in xs:
                 y = f(x)
