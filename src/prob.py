@@ -241,9 +241,6 @@ class Prob(object):
         terms (_approx_obj_exprs) and the penalty terms (_penalty_exprs).
         Note that this approximate value is computed with respect to when the
         last convexification was performed.
-
-        TODO: check that get_approx_value returns the same value as Gurobi's
-        model objVal.
         """
         value = 0.0
         for bound_expr in self._quad_obj_exprs + self._approx_obj_exprs:
