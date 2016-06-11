@@ -397,6 +397,78 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(prob.get_approx_value(0.5), np.array([[1.25]])))
         self.assertTrue(np.allclose(prob.get_value(0.5), np.array([[1.125]])))
 
+    def test_get_max_cnt_violation_eq_cnts(self):
+        prob = Prob()
+        dummy_var = Variable(np.zeros((1,1)), np.zeros((1,1)))
+        f = lambda x: np.array([[1,3]])
+
+        f_expr = Expr(f)
+        eq_expr = EqExpr(f_expr, np.array([[1,1]]))
+        bexpr = BoundExpr(eq_expr, dummy_var)
+        prob.add_cnt_expr(bexpr)
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
+
+        f_expr.f = lambda x: np.array([[2,1]])
+        eq_expr.val = np.array([[1,1]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 1.0))
+
+        f_expr.f = lambda x: np.array([[2,-2]])
+        eq_expr.val = np.array([[1,1]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 3.0))
+
+        f_expr.f = lambda x: np.array([[2,-2]])
+        eq_expr.val = np.array([[2, -2]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 0.0))
+
+        f_expr.f = lambda x: np.array([[2, 0]])
+        eq_expr.val = np.array([[2, -2]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
+
+    def test_get_max_cnt_violation_leq_cnts(self):
+        prob = Prob()
+        dummy_var = Variable(np.zeros((1,1)), np.zeros((1,1)))
+        f = lambda x: np.array([[1,3]])
+
+        f_expr = Expr(f)
+        leq_expr = LEqExpr(f_expr, np.array([[1,1]]))
+        bexpr = BoundExpr(leq_expr, dummy_var)
+        prob.add_cnt_expr(bexpr)
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
+
+        f_expr.f = lambda x: np.array([[2,1]])
+        leq_expr.val = np.array([[1,1]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 1.0))
+
+        f_expr.f = lambda x: np.array([[2,-2]])
+        leq_expr.val = np.array([[1,1]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 1.0))
+
+        f_expr.f = lambda x: np.array([[2,-2]])
+        leq_expr.val = np.array([[2, -2]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 0.0))
+
+        f_expr.f = lambda x: np.array([[2, 0]])
+        leq_expr.val = np.array([[2, -2]])
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
+
+    def test_get_max_cnt_violation_mult_cnts(self):
+        prob = Prob()
+        dummy_var = Variable(np.zeros((1,1)), np.zeros((1,1)))
+        f1 = lambda x: np.array([[1,3]])
+        f2 = lambda x: np.array([[0,0]])
+
+        f1_expr = Expr(f1)
+        leq_expr = LEqExpr(f1_expr, np.array([[1,1]]))
+        bexpr = BoundExpr(leq_expr, dummy_var)
+        prob.add_cnt_expr(bexpr)
+
+        f2_expr = Expr(f2)
+        eq_expr = EqExpr(f2_expr, np.array([[1,1]]))
+        bexpr = BoundExpr(eq_expr, dummy_var)
+        prob.add_cnt_expr(bexpr)
+
+        self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
+
     def test_pos_grb_var_manager(self):
         prob = Prob()
         model = prob._model

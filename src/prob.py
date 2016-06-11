@@ -233,6 +233,19 @@ class Prob(object):
             zeros = np.zeros(v.shape)
             return np.maximum(v, zeros)
 
+    def get_max_cnt_violation(self):
+        """
+        Returns the the maximum amount a non-linear constraint is violated.
+        Linear constraints are assumed to be satisfied because they are added
+        directly to the model and QP solvers can deal with them.
+        """
+        max_vio = 0.0
+        for bound_expr in self._nonlin_cnt_exprs:
+            cnt_vio = self._compute_cnt_violation(bound_expr)
+            cnt_max_vio = np.amax(cnt_vio)
+            max_vio = np.maximum(max_vio, cnt_max_vio)
+        return max_vio
+
     def get_approx_value(self, penalty_coeff):
         """
         Returns the current value of the penalty QP approximation by summing
