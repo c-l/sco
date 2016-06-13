@@ -50,6 +50,46 @@ class TestProb(unittest.TestCase):
         self.assertTrue(bexpr in prob._nonquad_obj_exprs)
         self.assertTrue(var in prob._vars)
 
+    def test_find_closest_feasible_point_leq_cnts(self):
+        cnt_vals = [np.ones((2,1)), np.array([[-1.0],[1.0]]), \
+            np.array([[-1.0],[-1.0]])]
+        true_var_vals = [np.zeros((2,1)), np.array([[-1.0],[0.0]]), \
+            -1*np.ones((2,1))]
+
+        for true_var_val, cnt_val in zip(true_var_vals, cnt_vals):
+            prob = Prob()
+            model = prob._model
+            grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
+            grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
+            grb_vars = np.array([[grb_var1],[grb_var2]])
+            var = Variable(grb_vars, np.zeros((2,1)))
+
+            model.update()
+
+            aff_expr = AffExpr(np.eye(2), np.zeros((2,1)))
+            leq_expr = LEqExpr(aff_expr, cnt_val)
+            bexpr = BoundExpr(leq_expr, var)
+            prob.add_cnt_expr(bexpr)
+            prob.find_closest_feasible_point()
+            self.assertTrue(np.allclose(var.get_value(), true_var_val))
+
+    def test_find_closest_feasible_point_eq_cnts(self):
+        prob = Prob()
+        model = prob._model
+        grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
+        grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
+        grb_vars = np.array([[grb_var1],[grb_var2]])
+        var = Variable(grb_vars, np.zeros((2,1)))
+
+        model.update()
+
+        val = np.array([[5.0],[-10.0]])
+        aff_expr = AffExpr(np.eye(2), np.zeros((2,1)))
+        eq_expr = EqExpr(aff_expr, val)
+        bexpr = BoundExpr(eq_expr, var)
+        prob.add_cnt_expr(bexpr)
+        prob.find_closest_feasible_point()
+        self.assertTrue(np.allclose(var.get_value(), val))
 
     def test_optimize_just_quad_obj(self):
         quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
