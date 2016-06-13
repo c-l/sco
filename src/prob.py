@@ -6,8 +6,8 @@ from ipdb import set_trace as st
 
 class Prob(object):
     """
-    Sequential convex programming problem with a scalar objective. A solution is found using the l1
-    penalty method.
+    Sequential convex programming problem with a scalar objective. A solution is
+    found using the l1 penalty method.
     """
 
     def __init__(self):
@@ -144,6 +144,27 @@ class Prob(object):
         neg = self._pgm.get_array(grb_expr.shape)
         cnts = self._add_np_array_grb_cnt(grb_expr, GRB.EQUAL, pos-neg)
         return pos+neg, cnts
+
+    def find_closest_feasible_point(self):
+        """
+        Finds the closest point (l2 norm) to the initialization that satisfies
+        the linear constraints.
+        """
+        self._del_old_grb_cnts()
+        self._model.update()
+
+        obj = grb.QuadExpr()
+        for var in self._vars:
+            g_var = var.get_grb_vars()
+            val = var.get_value()
+            if val is not None:
+                assert g_var.shape == val.shape
+                for i in np.ndindex(g_var.shape):
+                    obj += g_var[i]*g_var[i] - 2*val[i]*g_var[i] + val[i]*val[i]
+
+        self._model.setObjective(obj)
+        self._model.optimize()
+        self._update_vars()
 
     def optimize(self, penalty_coeff=0.0):
         """
