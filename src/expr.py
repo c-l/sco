@@ -65,8 +65,8 @@ class Expr(object):
             hess = self.hess(x)
             grad = self.grad(x)
             Q = hess
-            A = grad - 2*np.transpose(x).dot(hess)
-            b = np.transpose(x).dot(hess).dot(x) - grad.dot(x) + self.eval(x)
+            A = grad - np.transpose(x).dot(hess)
+            b = 0.5*np.transpose(x).dot(hess).dot(x) - grad.dot(x) + self.eval(x)
             return QuadExpr(Q, A, b)
         else:
             raise NotImplementedError
@@ -104,7 +104,7 @@ class QuadExpr(Expr):
 
     def __init__(self, Q, A, b):
         """
-        expr is x'Qx + Ax + b
+        expr is 0.5*x'Qx + Ax + b
         """
         assert A.shape[0] == 1, 'Can only define scalar quadrative expressions'
 
@@ -119,11 +119,11 @@ class QuadExpr(Expr):
         self.x_shape = (A.shape[1], 1)
 
     def eval(self, x):
-        return x.T.dot(self.Q.dot(x)) + self.A.dot(x) + self.b
+        return 0.5*x.T.dot(self.Q.dot(x)) + self.A.dot(x) + self.b
 
     def grad(self, x):
         assert x.shape == self.x_shape
-        return self.Q.dot(x) + self.Q.T.dot(x) + self.A.T
+        return 0.5*(self.Q.dot(x) + self.Q.T.dot(x)) + self.A.T
 
     def hess(self, x):
         return self.Q.copy()

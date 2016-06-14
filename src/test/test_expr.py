@@ -98,9 +98,9 @@ class TestExpr(unittest.TestCase):
                 b = quad_e.b
                 self.assertTrue(np.allclose(Q, y_d_prime))
                 self.assertTrue(np.allclose(A, \
-                    y_prime -2*np.transpose(x).dot(y_d_prime)))
+                    y_prime -np.transpose(x).dot(y_d_prime)))
                 self.assertTrue(np.allclose(b, \
-                    np.array(np.transpose(x).dot(y_d_prime)).dot(x)\
+                    np.array(0.5*np.transpose(x).dot(y_d_prime)).dot(x) \
                                 - y_prime.dot(x) + y))
                 self.assertTrue(np.allclose(quad_e.eval(x), y))
 
@@ -131,8 +131,8 @@ class TestQuadExpr(unittest.TestCase):
             b = np.random.rand(1)
             Q = np.random.rand(d, d)
             x = np.random.rand(d, 1)
-            y = x.T.dot(Q.dot(x)) + A.dot(x) + b
-            y_prime = Q.T.dot(x) + Q.dot(x) + A.T
+            y = 0.5*x.T.dot(Q.dot(x)) + A.dot(x) + b
+            y_prime = 0.5*(Q.T.dot(x) + Q.dot(x)) + A.T
             e = QuadExpr(Q, A, b)
 
             test_expr_val_grad(self, e, x, y, y_prime)
