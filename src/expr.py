@@ -19,13 +19,22 @@ class Expr(object):
 
     def __init__(self, f):
         self.f = f
-        self._grad = nd.Jacobian(f)
 
     def eval(self, x):
         return self.f(x)
 
     def grad(self, x):
-        return self._grad(x)
+        """
+        Reshaping and flattening is necessary for compatibility with
+        numdifftools' Jacobian function.
+        """
+        assert len(x.shape) == 2
+        rows, cols = x.shape
+        assert cols == 1
+        scalar_f = lambda x: self.f(x.reshape((rows, cols)))[0]
+        grad = nd.Jacobian(scalar_f)
+
+        return grad(x.flatten())
 
     def hess(self, x):
         """
@@ -35,7 +44,7 @@ class Expr(object):
         assert len(x.shape) == 2
         rows, cols = x.shape
         assert cols == 1
-        scalar_f = lambda x: self.f(x.reshape(x.shape))[0]
+        scalar_f = lambda x: self.f(x.reshape((rows, cols)))[0]
 
         hess = nd.Hessian(scalar_f)
 

@@ -18,6 +18,15 @@ fs = [(lambda x: x, lambda x: np.array([[1]]),
         lambda x: 6*x)]
 xs = [1., 2., -1., 0.]
 xs = [np.array([[x]]) for x in xs]
+
+# adding multi-dimensional fs and xs
+f = (lambda x: np.array([[x[0,0]**2+x[1,0]**2]]),
+        lambda x: np.array([[2*x[0,0], 2*x[1,0]]]),
+        lambda x: 2*np.eye(2))
+fs_multi = [f]
+xs_multi = [np.array([[0.0],[0.0]]), np.array([[2.0],[-2.0]]),
+    np.array([[1.0],[0.0]]), np.array([[0.0],[1.0]]),
+    np.array([[-1.0],[0.0]]), np.array([[0.0],[-1.0]])]
 N = 10
 d = 10
 
@@ -41,10 +50,19 @@ def test_expr_val_grad_hess(ut, e, x, y, y_prime, y_d_prime):
 
 class TestExpr(unittest.TestCase):
 
-    def test_expr_eval_grad(self):
+    def test_expr_eval_grad_hess(self):
         for f, fder, fhess in fs:
             e = Expr(f)
             for x in xs:
+                y = f(x)
+                y_prime = fder(x)
+                y_d_prime = fhess(x)
+                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
+
+    def test_expr_eval_grad_hess_multi(self):
+        for f, fder, fhess in fs_multi:
+            e = Expr(f)
+            for x in xs_multi:
                 y = f(x)
                 y_prime = fder(x)
                 y_d_prime = fhess(x)
