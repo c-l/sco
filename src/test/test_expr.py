@@ -10,13 +10,14 @@ import numpy as np
 
 from ipdb import set_trace as st
 
-fs = [(lambda x: np.array([x]), lambda x: np.array([1]),
-        lambda x: np.array([0])),
-      (lambda x: np.array([x**2]), lambda x: np.array([2*x]),
-        lambda x: np.array([2])),
-      (lambda x: np.array([x**3]), lambda x: np.array([3*x**2]),
-        lambda x: np.array([6*x]))]
+fs = [(lambda x: x, lambda x: np.array([[1]]),
+        lambda x: np.array([[0]])),
+      (lambda x: x**2, lambda x: 2*x,
+        lambda x: np.array([[2]])),
+      (lambda x: x**3, lambda x: 3*x**2,
+        lambda x: 6*x)]
 xs = [1., 2., -1., 0.]
+xs = [np.array([[x]]) for x in xs]
 N = 10
 d = 10
 
@@ -68,7 +69,6 @@ class TestExpr(unittest.TestCase):
         for f, fder, fhess in fs:
             e = Expr(f)
             for x in xs:
-                x = np.array([x])
                 y = f(x)
                 y_prime = fder(x)
                 y_d_prime = fhess(x)
@@ -275,9 +275,8 @@ class TestBoundExpr(unittest.TestCase):
             for x in xs:
                 y = f(x)
 
-                dummy_grb_vars = np.array([1])
-                value = np.array([x])
-                v = Variable(dummy_grb_vars, value)
+                dummy_grb_vars = np.array([[1]])
+                v = Variable(dummy_grb_vars, x)
 
                 b_e = BoundExpr(e, v)
                 self.assertTrue(np.allclose(b_e.eval(), e.eval(x)))
@@ -286,7 +285,7 @@ class TestBoundExpr(unittest.TestCase):
                 self.assertIsInstance(cvx_b_e, BoundExpr)
                 self.assertEqual(cvx_b_e.var, v)
 
-                cvx_e = b_e.expr.convexify(value)
+                cvx_e = b_e.expr.convexify(x)
                 self.assertTrue(np.allclose(cvx_e.A, cvx_b_e.expr.A))
                 self.assertTrue(np.allclose(cvx_e.b, cvx_b_e.expr.b))
 

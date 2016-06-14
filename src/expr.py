@@ -1,11 +1,13 @@
 import numpy as np
 import numdifftools as nd
+from ipdb import set_trace as st
 
 DEFAULT_TOL = 1e-4
 
 """
 Utility classes to represent expresions. Each expression defines an eval, grad,
-hess, and convexify method.
+hess, and convexify method. Variables and values are assumed to be 2D numpy
+arrays.
 """
 
 
@@ -18,7 +20,6 @@ class Expr(object):
     def __init__(self, f):
         self.f = f
         self._grad = nd.Jacobian(f)
-        self._hess = nd.Hessian(f)
 
     def eval(self, x):
         return self.f(x)
@@ -27,7 +28,18 @@ class Expr(object):
         return self._grad(x)
 
     def hess(self, x):
-        return self._hess(x)
+        """
+        Reshaping and flattening is necessary for compatibility with
+        numdifftools' Hessian function.
+        """
+        assert len(x.shape) == 2
+        rows, cols = x.shape
+        assert cols == 1
+        scalar_f = lambda x: self.f(x.reshape(x.shape))[0]
+
+        hess = nd.Hessian(scalar_f)
+
+        return hess(x.flatten())
 
     def convexify(self, x, degree=1):
         """
