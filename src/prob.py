@@ -126,7 +126,7 @@ class Prob(object):
 
     def _quad_expr_to_grb_expr(self, quad_expr, var):
         x = var.get_grb_vars()
-        return x.T.dot(quad_expr.Q.dot(x)) + quad_expr.A.dot(x) + quad_expr.b, []
+        return 0.5*x.T.dot(quad_expr.Q.dot(x)) + quad_expr.A.dot(x) + quad_expr.b, []
 
     def _hinge_expr_to_grb_expr(self, hinge_expr, var):
         aff_expr = hinge_expr.expr

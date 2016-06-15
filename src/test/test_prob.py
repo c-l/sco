@@ -18,7 +18,7 @@ def test_grb_var_pos(ut, grb_var):
 class TestProb(unittest.TestCase):
 
     def test_add_obj_expr_quad(self):
-        quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
+        quad = QuadExpr(2*np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
         aff = AffExpr(-2*np.ones((1,1)), np.zeros((1,1)))
         prob = Prob()
         model = prob._model
@@ -92,7 +92,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(var.get_value(), val))
 
     def test_optimize_just_quad_obj(self):
-        quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
+        quad = QuadExpr(2*np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
         aff = AffExpr(-2*np.ones((1,1)), np.zeros((1,1)))
         prob = Prob()
         model = prob._model
@@ -113,7 +113,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(var.get_value(), np.array([[2.0]])))
 
     def test_optimize_multidim_quad_obj(self):
-        Q = np.array([[1,0], [0,0]])
+        Q = np.array([[2,0], [0,0]])
         A = np.array([[-4, 0]])
         quad = QuadExpr(Q, A, np.zeros((1,1)))
         prob = Prob()
@@ -170,7 +170,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(var.get_value(), np.array([[2]])))
 
     def test_add_cnt_leq_aff(self):
-        quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
+        quad = QuadExpr(2*np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
 
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = LEqExpr(aff, np.array([[-4]]))
@@ -337,7 +337,7 @@ class TestProb(unittest.TestCase):
         when penalty_coeff == 2, solution is x = 1.0 and the value is 7.0
         (according to Wolfram Alpha)
         """
-        quad = QuadExpr(np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
+        quad = QuadExpr(2*np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
         e = Expr(f)
         eq = EqExpr(e, np.array([[4]]))
 
@@ -375,7 +375,7 @@ class TestProb(unittest.TestCase):
         when penalty_coeff == 2, solution is x = 1.0 and the value is 7.0
         (according to Wolfram Alpha)
         """
-        quad = QuadExpr(np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
+        quad = QuadExpr(2*np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
         e = Expr(f)
         eq = EqExpr(e, np.array([[4]]))
 
@@ -413,8 +413,8 @@ class TestProb(unittest.TestCase):
         approx value should be 1.25
         value should be 1.125
         """
-        quad = QuadExpr(np.eye(1), -2*np.ones((1,1)), np.ones((1,1)))
-        quad_cnt = QuadExpr(np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
+        quad = QuadExpr(2*np.eye(1), -2*np.ones((1,1)), np.ones((1,1)))
+        quad_cnt = QuadExpr(2*np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
         eq = EqExpr(quad_cnt, np.array([[4]]))
 
         prob = Prob()
