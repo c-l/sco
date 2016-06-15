@@ -30,6 +30,7 @@ class Prob(object):
             positive Gurobi variables so that there are less model updates.
         """
         self._model = grb.Model()
+        self._model.params.OutputFlag = 0 # silences Gurobi output
         self._vars = set()
 
         self._quad_obj_exprs = []
