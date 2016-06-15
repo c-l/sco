@@ -1,36 +1,122 @@
+import time
+from ipdb import set_trace as st
+
 class Solver(object):
     """
     SCO Solver
     """
 
     def __init__(self):
-        pass
+        """
+        values taken from Pieter Abbeel's CS287 hw3 q2 penalty_sqp.m file
+        """
+        self.improve_ratio_threshold = .25
+        self.min_trust_region_size = 1e-4
+        self.min_approx_improve = 1e-4
+        self.max_iter = 50
+        self.trust_shrink_ratio = .1
+        self.trust_expand_ratio = 1.5
+        self.cnt_tolerance = 1e-4
+        self.max_merit_coeff_increases = 5
+        self.merit_coeff_increase_ratio = 10
+        self.initial_trust_region_size = 1
+        self.initial_penalty_coeff = 1.
 
     def solve(self, prob, method=None):
         """
+        Returns whether solve succeeded.
+
         Given a sco (sequential convex optimization) problem instance, solve
-        using specified method to find a solution.
+        using specified method to find a solution. If the specified method
+        doesn't exist, an exception is thrown.
         """
-        raise NotImplementedError
+        if method is "penalty_sqp":
+            return self._penalty_sqp(prob)
+        else:
+            raise Exception("This method is not supported.")
 
     def _penalty_sqp(self, prob):
         """
+        Return true is the penalty sqp method succeeds.
         Uses Penalty Sequential Quadratic Programming to solve the problem
         instance.
         """
-        raise NotImplementedError
+        start = time.time()
+        trust_region_size = self.initial_trust_region_size
+        penalty_coeff = self.initial_penalty_coeff
+
+        prob.find_closest_feasible_point()
+
+        for i in range(self.max_merit_coeff_increases):
+            success = self._min_merit_fn(prob, penalty_coeff, trust_region_size)
+            print '\n'
+
+            if prob.get_max_cnt_violation() > self.cnt_tolerance:
+                penalty_coeff = penalty_coeff*self.merit_coeff_increase_ratio
+                trust_region_size = self.initial_trust_region_size
+            else:
+                end = time.time()
+                print "sqp time: ", end-start
+                return success
+        end = time.time()
+        print "sqp time: ", end-start
+        return False
 
     def _min_merit_fn(self, prob, penalty_coeff, trust_region_size):
         """
+        Returns true if the merit function is minimized successfully.
         Minimize merit function for penalty sqp
         """
-        raise NotImplementedError
+        sqp_iter = 1
 
-    def _is_converged(self, trust_region_size):
-        """
-        Returns true if prob has converged
-        """
-        raise NotImplementedError
+        while True:
+            print("  sqp_iter: {0}".format(sqp_iter))
+
+            prob.convexify()
+            merit = prob.get_value(penalty_coeff)
+            prob.save()
+
+            while True:
+                print("    trust region size: {0}".format(trust_region_size))
+
+                prob.add_trust_region(trust_region_size)
+                prob.optimize(penalty_coeff)
+
+                model_merit = prob.get_approx_value(penalty_coeff)
+                new_merit = prob.get_value(penalty_coeff)
+
+                approx_merit_improve = merit - model_merit
+                exact_merit_improve = merit - new_merit
+                merit_improve_ratio = exact_merit_improve / approx_merit_improve
+
+                print("      merit: {0}. model_merit: {1}. new_merit: {2}".format(merit, model_merit, new_merit))
+                print("      approx_merit_improve: {0}. exact_merit_improve: {1}. merit_improve_ratio: {2}".format(approx_merit_improve, exact_merit_improve, merit_improve_ratio))
+
+                if self._bad_model(approx_merit_improve):
+                    print("Approximate merit function got worse ({0})".format(approx_merit_improve))
+                    print("Either convexification is wrong to zeroth order, or you're in numerical trouble.")
+                    prob.restore()
+                    return False
+
+                if self._y_converged(approx_merit_improve):
+                    print("Converged: y tolerance")
+                    prob.restore()
+                    return True
+
+                if self._shrink_trust_region(exact_merit_improve, merit_improve_ratio):
+                    prob.restore()
+                    print("Shrinking trust region")
+                    trust_region_size = trust_region_size * self.trust_shrink_ratio
+                else:
+                    print("Growing trust region")
+                    trust_region_size = trust_region_size * self.trust_expand_ratio
+                    break #from trust region loop
+
+                if self._x_converged(trust_region_size):
+                    print("Converged: x tolerance")
+                    return True
+
+            sqp_iter = sqp_iter + 1
 
     def _bad_model(self, approx_merit_improve):
         """
@@ -38,24 +124,25 @@ class Solver(object):
         either the convexification is wrong to the zeroth order or there are
         numerical problems.
         """
-        raise NotImplementedError
+        return approx_merit_improve < -1e-5
 
-    def _shrink_trust_region(self, exact_merit_improve, approx_merit_improve):
+    def _shrink_trust_region(self, exact_merit_improve, merit_improve_ratio):
         """
         Returns true if the trust region should shrink (exact merit improve is negative or the merit improve ratio is too low)
         """
-        raise NotImplementedError
+        return (exact_merit_improve < 0) or \
+            (merit_improve_ratio < self.improve_ratio_threshold)
 
     def _x_converged(self, trust_region_size):
         """
         Returns true if the variable values has converged (trust_region size is
-        smaller than the minimum trust box size)
+        smaller than the minimum trust region size)
         """
-        raise NotImplementedError
+        return trust_region_size < self.min_trust_region_size
 
     def _y_converged(self, approx_merit_improve):
         """
-        Returns true if the approx_merit has converged (approx_merit <
+        Returns true if the approx_merit has converged (approx_merit_improve <
         min_approx_merit_improve)
         """
-        raise NotImplementedError
+        return approx_merit_improve < self.min_approx_improve
