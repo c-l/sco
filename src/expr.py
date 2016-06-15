@@ -24,32 +24,33 @@ class Expr(object):
     def eval(self, x):
         return self.f(x)
 
-    def grad(self, x):
+    def _get_flat_f(self, x):
         """
-        Reshaping and flattening is necessary for compatibility with
-        numdifftools' Jacobian function.
+        Utility function which reshapes and flattens for compatibility with
+        numdifftools' Jacobian and Hessian function.
         """
         assert len(x.shape) == 2
         rows, cols = x.shape
         assert cols == 1
-        scalar_f = lambda x: self.f(x.reshape((rows, cols)))[0]
-        grad = nd.Jacobian(scalar_f)
+        def flat_f(x):
+            return self.f(x.reshape((rows, cols))).flatten()
+        return flat_f
 
-        return grad(x.flatten())
+    def grad(self, x):
+        """
+        Flattening is necessary for compatibility with numdifftools' Jacobian
+        function.
+        """
+        grad_fn = nd.Jacobian(self._get_flat_f(x))
+        return grad_fn(x.flatten())
 
     def hess(self, x):
         """
-        Reshaping and flattening is necessary for compatibility with
-        numdifftools' Hessian function.
+        Flattening is necessary for compatibility with numdifftools' Hessian
+        function.
         """
-        assert len(x.shape) == 2
-        rows, cols = x.shape
-        assert cols == 1
-        scalar_f = lambda x: self.f(x.reshape((rows, cols)))[0]
-
-        hess_fn = nd.Hessian(scalar_f)
-        hess = hess_fn(x.flatten())
-        return hess
+        hess_fn = nd.Hessian(self._get_flat_f(x))
+        return hess_fn(x.flatten())
 
     def convexify(self, x, degree=1):
         """

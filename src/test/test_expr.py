@@ -83,6 +83,17 @@ class TestExpr(unittest.TestCase):
                 self.assertTrue(np.allclose(b, f(x) - A.dot(x)))
                 self.assertTrue(np.allclose(aff_e.eval(x), f(x)))
 
+    def test_convexify_deg_2_multi_dim(self):
+        x0 = np.array([[5.0],[5.0]])
+        f = lambda x: np.vstack((\
+            x[0,0]**2 + x[1,0]**2 - 4, \
+            -((x[0,0]-1)**2 +(x[1,0]**2-1)**2 - 0.25), \
+            -((x[0,0]+1)**2 +(x[1,0]**2-1)**2 - 0.25), \
+            -((x[0,0])**2 + 7*(x[1,0]+1-x[0,0]**2/2)**2 - 0.8)))
+        e = Expr(f)
+        aff_e = e.convexify(x0)
+        self.assertTrue(aff_e.A.shape[0] == aff_e.b.shape[0])
+
     def test_convexify_deg_2(self):
         for f, fder, fhess in fs:
             e = Expr(f)
