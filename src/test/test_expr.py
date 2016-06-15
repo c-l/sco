@@ -90,10 +90,11 @@ class TestExpr(unittest.TestCase):
                 y = f(x)
                 y_prime = fder(x)
                 y_d_prime = fhess(x)
+                y_d_prime = np.maximum(y_d_prime, np.zeros((1,1)))
 
                 quad_e = e.convexify(x, degree=2)
                 self.assertIsInstance(quad_e, QuadExpr)
-                Q = quad_e.Q
+                Q = np.maximum(quad_e.Q, np.zeros((1,1)))
                 A = quad_e.A
                 b = quad_e.b
                 self.assertTrue(np.allclose(Q, y_d_prime))
@@ -103,6 +104,15 @@ class TestExpr(unittest.TestCase):
                     np.array(0.5*np.transpose(x).dot(y_d_prime)).dot(x) \
                                 - y_prime.dot(x) + y))
                 self.assertTrue(np.allclose(quad_e.eval(x), y))
+
+    def test_convexify_deg_2_negative_hessian(self):
+        f = lambda x: -x**2
+        f_hess = np.array([[-2.0]])
+        e = Expr(f)
+        quad_e = e.convexify(np.zeros((1,1)), degree=2)
+        self.assertIsInstance(quad_e, QuadExpr)
+        Q = quad_e.Q
+        self.assertTrue(np.allclose(Q, np.zeros((1,1))))
 
 
 class TestAffExpr(unittest.TestCase):

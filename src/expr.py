@@ -1,5 +1,6 @@
 import numpy as np
 import numdifftools as nd
+from scipy.linalg import eigvalsh
 from ipdb import set_trace as st
 
 DEFAULT_TOL = 1e-4
@@ -46,15 +47,16 @@ class Expr(object):
         assert cols == 1
         scalar_f = lambda x: self.f(x.reshape((rows, cols)))[0]
 
-        hess = nd.Hessian(scalar_f)
-
-        return hess(x.flatten())
+        hess_fn = nd.Hessian(scalar_f)
+        hess = hess_fn(x.flatten())
+        return hess
 
     def convexify(self, x, degree=1):
         """
         Returns an Expression object that represents the convex approximation of
         self at x where degree 1 is an affine approximation and degree 2 is a
-        quadratic approximation
+        quadratic approximation. If the hessian has negative eigenvalues, the
+        hessian is adjusted so that it is positive semi-definite.
         """
 
         if degree == 1:
@@ -63,6 +65,11 @@ class Expr(object):
             return AffExpr(A, b)
         elif degree == 2:
             hess = self.hess(x)
+            eig_vals = eigvalsh(hess)
+            min_eig_val = min(eig_vals)
+            if min_eig_val < 0:
+                print("    negative hessian detected. adjusting by {0}.".format(-min_eig_val))
+                hess = hess - np.eye(hess.shape[0])*min_eig_val
             grad = self.grad(x)
             Q = hess
             A = grad - np.transpose(x).dot(hess)
