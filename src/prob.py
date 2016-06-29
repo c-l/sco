@@ -10,7 +10,7 @@ class Prob(object):
     found using the l1 penalty method.
     """
 
-    def __init__(self):
+    def __init__(self, grb_model):
         """
         _model: Gurobi model associated with this problem
         _vars: variables in this problem
@@ -29,7 +29,7 @@ class Prob(object):
         _pgm: Positive Gurobi variable manager provides a lazy way of generating
             positive Gurobi variables so that there are less model updates.
         """
-        self._model = grb.Model()
+        self._model = grb_model
         self._model.params.OutputFlag = 0 # silences Gurobi output
         self._vars = set()
 

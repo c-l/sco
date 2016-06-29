@@ -20,8 +20,8 @@ class TestProb(unittest.TestCase):
     def test_add_obj_expr_quad(self):
         quad = QuadExpr(2*np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
         aff = AffExpr(-2*np.ones((1,1)), np.zeros((1,1)))
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -37,8 +37,8 @@ class TestProb(unittest.TestCase):
 
     def test_add_obj_expr_nonquad(self):
         expr = Expr(f)
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -57,8 +57,8 @@ class TestProb(unittest.TestCase):
             -1*np.ones((2,1))]
 
         for true_var_val, cnt_val in zip(true_var_vals, cnt_vals):
-            prob = Prob()
-            model = prob._model
+            model = grb.Model()
+            prob = Prob(model)
             grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
             grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
             grb_vars = np.array([[grb_var1],[grb_var2]])
@@ -74,8 +74,8 @@ class TestProb(unittest.TestCase):
             self.assertTrue(np.allclose(var.get_value(), true_var_val))
 
     def test_find_closest_feasible_point_eq_cnts(self):
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
         grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
         grb_vars = np.array([[grb_var1],[grb_var2]])
@@ -94,8 +94,8 @@ class TestProb(unittest.TestCase):
     def test_optimize_just_quad_obj(self):
         quad = QuadExpr(2*np.eye(1), -2*np.ones((1,1)), np.zeros((1,1)))
         aff = AffExpr(-2*np.ones((1,1)), np.zeros((1,1)))
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -116,8 +116,8 @@ class TestProb(unittest.TestCase):
         Q = np.array([[2,0], [0,0]])
         A = np.array([[-4, 0]])
         quad = QuadExpr(Q, A, np.zeros((1,1)))
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
         grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
         grb_vars = np.array([[grb_var1], [grb_var2]])
@@ -136,7 +136,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(var_value, value))
 
     def test_expr_to_grb_expr_w_comp_expr(self):
-        prob = Prob()
+        model = grb.Model()
+        prob = Prob(model)
         aff = AffExpr(-2*np.ones((1,1)), np.zeros((1,1)))
         val = np.zeros((1,1))
         cexpr = CompExpr(aff, val)
@@ -146,7 +147,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue("Comparison" in e.exception.message)
 
     def test_expr_to_grb_expr_w_expr(self):
-        prob = Prob()
+        model = grb.Model()
+        prob = Prob(model)
         expr = Expr(f)
         bexpr = BoundExpr(f, None)
         with self.assertRaises(Exception) as e:
@@ -156,8 +158,8 @@ class TestProb(unittest.TestCase):
     def test_add_cnt_expr_eq_aff(self):
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = EqExpr(aff, np.array([[2]]))
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -174,8 +176,8 @@ class TestProb(unittest.TestCase):
 
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = LEqExpr(aff, np.array([[-4]]))
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -196,8 +198,8 @@ class TestProb(unittest.TestCase):
         """
         aff = AffExpr(np.ones((1,1)), np.ones((1,1)))
         hinge = HingeExpr(aff)
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
@@ -207,14 +209,14 @@ class TestProb(unittest.TestCase):
         hinge_grb_expr, hinge_grb_cnt = prob._hinge_expr_to_grb_expr(hinge, var)
         model.update()
         obj = hinge_grb_expr[0,0]
-        prob._model.setObjective(obj)
+        model.setObjective(obj)
 
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = EqExpr(aff, np.array([[-4]]))
         bound_expr = BoundExpr(comp, var)
         prob.add_cnt_expr(bound_expr)
 
-        prob._model.optimize()
+        model.optimize()
         var.update()
         self.assertTrue(np.allclose(var.get_value(), np.array([[-4]])))
         self.assertTrue(np.allclose(obj.X, 0.0))
@@ -225,8 +227,8 @@ class TestProb(unittest.TestCase):
         """
         aff = AffExpr(np.ones((1,1)), np.ones((1,1)))
         hinge = HingeExpr(aff)
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
@@ -236,14 +238,14 @@ class TestProb(unittest.TestCase):
         hinge_grb_expr, hinge_grb_cnt = prob._hinge_expr_to_grb_expr(hinge, var)
         model.update()
         obj = hinge_grb_expr[0,0]
-        prob._model.setObjective(obj)
+        model.setObjective(obj)
 
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = EqExpr(aff, np.array([[1.0]]))
         bound_expr = BoundExpr(comp, var)
         prob.add_cnt_expr(bound_expr)
 
-        prob._model.optimize()
+        model.optimize()
         var.update()
         self.assertTrue(np.allclose(var.get_value(), np.array([[1.0]])))
         self.assertTrue(np.allclose(obj.X, 2.0))
@@ -258,8 +260,8 @@ class TestProb(unittest.TestCase):
         aff = AffExpr(np.ones((1,1)), np.zeros((1,1)))
         comp = LEqExpr(aff, np.array([[-4]]))
 
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
 
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
@@ -269,12 +271,12 @@ class TestProb(unittest.TestCase):
 
         abs_grb_expr, abs_grb_cnt = prob._abs_expr_to_grb_expr(abs_expr, var)
         model.update()
-        prob._model.setObjective(abs_grb_expr[0,0])
+        model.setObjective(abs_grb_expr[0,0])
 
         bexpr = BoundExpr(comp, var)
         prob.add_cnt_expr(bexpr)
 
-        prob._model.optimize()
+        model.optimize()
         var.update()
         self.assertTrue(np.allclose(var.get_value(), np.array([[-4]])))
         # makes assumption about the construction of the Gurobi variable, needs
@@ -285,8 +287,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(neg, 3.0))
 
     def test_convexify_eq(self):
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -306,8 +308,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(isinstance(prob._penalty_exprs[0].expr, AbsExpr))
 
     def test_convexify_leq(self):
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
@@ -341,8 +343,8 @@ class TestProb(unittest.TestCase):
         e = Expr(f)
         eq = EqExpr(e, np.array([[4]]))
 
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
@@ -379,8 +381,8 @@ class TestProb(unittest.TestCase):
         e = Expr(f)
         eq = EqExpr(e, np.array([[4]]))
 
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
@@ -417,8 +419,8 @@ class TestProb(unittest.TestCase):
         quad_cnt = QuadExpr(2*np.eye(1), np.zeros((1,1)), np.zeros((1,1)))
         eq = EqExpr(quad_cnt, np.array([[4]]))
 
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
@@ -438,7 +440,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(prob.get_value(0.5), np.array([[1.125]])))
 
     def test_get_max_cnt_violation_eq_cnts(self):
-        prob = Prob()
+        model = grb.Model()
+        prob = Prob(model)
         dummy_var = Variable(np.zeros((1,1)), np.zeros((1,1)))
         f = lambda x: np.array([[1,3]])
 
@@ -465,7 +468,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
     def test_get_max_cnt_violation_leq_cnts(self):
-        prob = Prob()
+        model = grb.Model()
+        prob = Prob(model)
         dummy_var = Variable(np.zeros((1,1)), np.zeros((1,1)))
         f = lambda x: np.array([[1,3]])
 
@@ -492,7 +496,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
     def test_get_max_cnt_violation_mult_cnts(self):
-        prob = Prob()
+        model = grb.Model()
+        prob = Prob(model)
         dummy_var = Variable(np.zeros((1,1)), np.zeros((1,1)))
         f1 = lambda x: np.array([[1,3]])
         f2 = lambda x: np.array([[0,0]])
@@ -510,8 +515,8 @@ class TestProb(unittest.TestCase):
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
     def test_pos_grb_var_manager(self):
-        prob = Prob()
-        model = prob._model
+        model = grb.Model()
+        prob = Prob(model)
         init_num = 1
         inc_num = 10
         shape = (2,7)
