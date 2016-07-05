@@ -18,8 +18,10 @@ class Expr(object):
     by default, expressions are defined by black box functions
     """
 
-    def __init__(self, f):
+    def __init__(self, f, grad=None, hess=None):
         self.f = f
+        self._grad = grad
+        self._hess = hess
 
     def eval(self, x):
         return self.f(x)
@@ -41,16 +43,22 @@ class Expr(object):
         Flattening is necessary for compatibility with numdifftools' Jacobian
         function.
         """
-        grad_fn = nd.Jacobian(self._get_flat_f(x))
-        return grad_fn(x.flatten())
+        if self._grad is None:
+            grad_fn = nd.Jacobian(self._get_flat_f(x))
+            return grad_fn(x.flatten())
+        else:
+            return self._grad(x)
 
     def hess(self, x):
         """
         Flattening is necessary for compatibility with numdifftools' Hessian
         function.
         """
-        hess_fn = nd.Hessian(self._get_flat_f(x))
-        return hess_fn(x.flatten())
+        if self._hess is None:
+            hess_fn = nd.Hessian(self._get_flat_f(x))
+            return hess_fn(x.flatten())
+        else:
+            return self._hess(x)
 
     def convexify(self, x, degree=1):
         """

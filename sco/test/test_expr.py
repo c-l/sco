@@ -68,6 +68,24 @@ class TestExpr(unittest.TestCase):
                 y_d_prime = fhess(x)
                 test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
 
+    def test_expr_eval_grad_hess_w_fder_and_fhess(self):
+        for f, fder, fhess in fs:
+            e = Expr(f, fder, fhess)
+            for x in xs:
+                y = f(x)
+                y_prime = fder(x)
+                y_d_prime = fhess(x)
+                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
+
+    def test_expr_eval_grad_hess_multi_w_fder_and_fhess(self):
+        for f, fder, fhess in fs_multi:
+            e = Expr(f, fder, fhess)
+            for x in xs_multi:
+                y = f(x)
+                y_prime = fder(x)
+                y_d_prime = fhess(x)
+                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
+
     def test_convexify_deg_1(self):
         for f, fder, _ in fs:
             e = Expr(f)
