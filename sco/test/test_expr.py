@@ -48,6 +48,16 @@ def test_expr_val_grad_hess(ut, e, x, y, y_prime, y_d_prime):
     y_d_prime_e = np.array(e.hess(x))
     ut.assertTrue(np.allclose(y_d_prime_e, y_d_prime))
 
+def test_expr_val_grad_hess_with_num_check(ut, e, x, y, y_prime, y_d_prime):
+    y = np.array(y)
+    y_prime = np.array(y_prime)
+    y_e = np.array(e.eval(x))
+    ut.assertTrue(np.allclose(y_e, y))
+    y_prime_e = np.array(e.grad(x, num_check=True))
+    ut.assertTrue(np.allclose(y_prime_e, y_prime))
+    y_d_prime_e = np.array(e.hess(x, num_check=True))
+    ut.assertTrue(np.allclose(y_d_prime_e, y_d_prime))
+
 class TestExpr(unittest.TestCase):
 
     def test_expr_eval_grad_hess(self):
@@ -75,16 +85,35 @@ class TestExpr(unittest.TestCase):
                 y = f(x)
                 y_prime = fder(x)
                 y_d_prime = fhess(x)
-                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
+                test_expr_val_grad_hess_with_num_check(self, e, x, y, y_prime, y_d_prime)
 
-    def test_expr_eval_grad_hess_multi_w_fder_and_fhess(self):
+    def test_expr_eval_grad_hess_multi_w_fder_fhess_and_num_check(self):
         for f, fder, fhess in fs_multi:
             e = Expr(f, fder, fhess)
             for x in xs_multi:
                 y = f(x)
                 y_prime = fder(x)
                 y_d_prime = fhess(x)
-                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
+                test_expr_val_grad_hess_with_num_check(self, e, x, y, y_prime, y_d_prime)
+
+    def test_expr_num_check(self):
+        f, fder, fhess = fs_multi[0]
+        x = xs_multi[0]
+        e = Expr(f)
+        with self.assertRaises(AssertionError):
+            e.grad(x, num_check=True)
+        with self.assertRaises(AssertionError):
+            e.hess(x, num_check=True)
+
+        # wrong fder and fhess
+        fder = lambda x: np.array([[2*x[0,0]+1, 2*x[1,0]+1]])
+        fhess = lambda x: 3*np.eye(2)
+        e = Expr(f, fder, fhess)
+
+        with self.assertRaises(AssertionError):
+            e.grad(x, num_check=True)
+        with self.assertRaises(AssertionError):
+            e.hess(x, num_check=True)
 
     def test_convexify_deg_1(self):
         for f, fder, _ in fs:

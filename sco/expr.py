@@ -38,27 +38,47 @@ class Expr(object):
             return self.f(x.reshape((rows, cols))).flatten()
         return flat_f
 
-    def grad(self, x):
+    def _num_grad(self, x):
         """
+        Returns a numerically computed gradient.
         Flattening is necessary for compatibility with numdifftools' Jacobian
         function.
         """
-        if self._grad is None:
-            grad_fn = nd.Jacobian(self._get_flat_f(x))
-            return grad_fn(x.flatten())
-        else:
-            return self._grad(x)
+        grad_fn = nd.Jacobian(self._get_flat_f(x))
+        return grad_fn(x.flatten())
 
-    def hess(self, x):
+    def grad(self, x, num_check=False):
         """
+        Returns the gradient. Can numerically check the gradient.
+        """
+        assert not num_check or self._grad is not None
+        if self._grad is None:
+            return self._num_grad(x)
+        gradient = self._grad(x)
+        if num_check:
+            assert np.allclose(self._num_grad(x), gradient)
+        return gradient
+
+    def _num_hess(self, x):
+        """
+        Returns a numerically computed hessian.
         Flattening is necessary for compatibility with numdifftools' Hessian
         function.
         """
+        hess_fn = nd.Hessian(self._get_flat_f(x))
+        return hess_fn(x.flatten())
+
+    def hess(self, x, num_check=False):
+        """
+        Returns the hessian. Can numerically check the hessian.
+        """
+        assert not num_check or self._hess is not None
         if self._hess is None:
-            hess_fn = nd.Hessian(self._get_flat_f(x))
-            return hess_fn(x.flatten())
-        else:
-            return self._hess(x)
+            return self._num_hess(x)
+        hessian = self._hess(x)
+        if num_check:
+            assert np.allclose(self._num_hess(x), hessian)
+        return hessian
 
     def convexify(self, x, degree=1):
         """
