@@ -37,8 +37,8 @@ def test_prob(ut, x0, x_true, f=zerofunc, g=neginffunc, h=zerofunc,
     if not np.allclose(A_eq, np.zeros((1,1)))\
         or not np.allclose(b_eq, np.zeros((1,1))):
         raise NotImplementedError
-    prob = Prob(model)
     model = grb.Model()
+    prob = Prob(model)
 
     grb_var1 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x1')
     grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
