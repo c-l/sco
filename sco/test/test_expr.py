@@ -18,6 +18,7 @@ fs = [(lambda x: x, lambda x: np.array([[1]]),
         lambda x: 6*x)]
 xs = [1., 2., -1., 0.]
 xs = [np.array([[x]]) for x in xs]
+xs_flat = [x[0] for x in xs]
 
 # adding multi-dimensional fs and xs
 f = (lambda x: np.array([[x[0,0]**2+x[1,0]**2]]),
@@ -64,6 +65,18 @@ class TestExpr(unittest.TestCase):
         for f, fder, fhess in fs:
             e = Expr(f)
             for x in xs:
+                y = f(x)
+                y_prime = fder(x)
+                y_d_prime = fhess(x)
+                test_expr_val_grad_hess(self, e, x, y, y_prime, y_d_prime)
+
+    def test_expr_eval_grad_hess_flat(self):
+        for f, fder, fhess in fs:
+            e = Expr(f)
+            for x in xs_flat:
+                with self.assertRaises(Exception) as cm:
+                    e.grad(np.array([[[x[0]]]]))
+                self.assertTrue("Input shape not supported" in cm.exception.message)
                 y = f(x)
                 y_prime = fder(x)
                 y_d_prime = fhess(x)

@@ -31,12 +31,16 @@ class Expr(object):
         Utility function which reshapes and flattens for compatibility with
         numdifftools' Jacobian and Hessian function.
         """
-        assert len(x.shape) == 2
-        rows, cols = x.shape
-        assert cols == 1
-        def flat_f(x):
-            return self.f(x.reshape((rows, cols))).flatten()
-        return flat_f
+        if len(x.shape) == 2:
+            rows, cols = x.shape
+            assert cols == 1
+            def flat_f(x):
+                return self.f(x.reshape((rows, cols))).flatten()
+            return flat_f
+        elif len(x.shape) == 1:
+            return self.f
+        else:
+            raise Exception("Input shape not supported")
 
     def _num_grad(self, x):
         """
