@@ -110,10 +110,20 @@ class TestExpr(unittest.TestCase):
         fhess = lambda x: 3*np.eye(2)
         e = Expr(f, fder, fhess)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(Exception) as cm:
             e.grad(x, num_check=True)
-        with self.assertRaises(AssertionError):
+        self.assertTrue("Numerical and analytical gradients aren't close"\
+                        in cm.exception.message)
+        with self.assertRaises(Exception) as cm:
             e.hess(x, num_check=True)
+        self.assertTrue("Numerical and analytical hessians aren't close"\
+                        in cm.exception.message)
+
+        try:
+            e.grad(x, num_check=True, atol=1.)
+            e.hess(x, num_check=True, atol=1.)
+        except Exception:
+            self.fail("gradient and hessian calls should not raise exception.")
 
     def test_convexify_deg_1(self):
         for f, fder, _ in fs:

@@ -47,7 +47,7 @@ class Expr(object):
         grad_fn = nd.Jacobian(self._get_flat_f(x))
         return grad_fn(x.flatten())
 
-    def grad(self, x, num_check=False):
+    def grad(self, x, num_check=False, atol=DEFAULT_TOL):
         """
         Returns the gradient. Can numerically check the gradient.
         """
@@ -56,7 +56,10 @@ class Expr(object):
             return self._num_grad(x)
         gradient = self._grad(x)
         if num_check:
-            assert np.allclose(self._num_grad(x), gradient)
+            num_grad = self._num_grad(x)
+            if not np.allclose(num_grad, gradient, atol=atol):
+                raise Exception("Numerical and analytical gradients aren't close. \
+                    \nnum_grad: {0}\nana_grad: {1}\n".format(num_grad, gradient))
         return gradient
 
     def _num_hess(self, x):
@@ -68,7 +71,7 @@ class Expr(object):
         hess_fn = nd.Hessian(self._get_flat_f(x))
         return hess_fn(x.flatten())
 
-    def hess(self, x, num_check=False):
+    def hess(self, x, num_check=False, atol=DEFAULT_TOL):
         """
         Returns the hessian. Can numerically check the hessian.
         """
@@ -77,7 +80,10 @@ class Expr(object):
             return self._num_hess(x)
         hessian = self._hess(x)
         if num_check:
-            assert np.allclose(self._num_hess(x), hessian)
+            num_hess = self._num_hess(x)
+            if not np.allclose(num_hess, hessian, atol=atol):
+                raise Exception("Numerical and analytical hessians aren't close. \
+                    \nnum_hess: {0}\nana_hess: {1}\n".format(num_hess, hessian))
         return hessian
 
     def convexify(self, x, degree=1):
