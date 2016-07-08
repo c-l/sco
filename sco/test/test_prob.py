@@ -534,5 +534,19 @@ class TestProb(unittest.TestCase):
         self.assertTrue(a.shape == shape)
         self.assertTrue(len(pgm._grb_vars) == init_num+2*inc_num)
 
+    def test_callback(self):
+        x = {}
+        def test():
+            x[1] = 2
+        callback = test
+        model = grb.Model()
+        prob = Prob(model, callback)
+
+        prob.find_closest_feasible_point()
+        self.assertTrue(1 in x)
+        x[1] = 3
+        prob.optimize()
+        self.assertTrue(1 in x)
+
 if __name__ == '__main__':
     unittest.main()

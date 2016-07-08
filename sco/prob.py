@@ -10,7 +10,7 @@ class Prob(object):
     found using the l1 penalty method.
     """
 
-    def __init__(self, grb_model):
+    def __init__(self, grb_model, callback=None):
         """
         _model: Gurobi model associated with this problem
         _vars: variables in this problem
@@ -32,6 +32,12 @@ class Prob(object):
         self._model = grb_model
         self._model.params.OutputFlag = 0 # silences Gurobi output
         self._vars = set()
+        if callback is not None:
+            self._callback = callback
+        else:
+            def do_nothing():
+                pass
+            self._callback = do_nothing
 
         self._quad_obj_exprs = []
         self._nonquad_obj_exprs = []
@@ -166,6 +172,7 @@ class Prob(object):
         self._model.setObjective(obj)
         self._model.optimize()
         self._update_vars()
+        self._callback()
 
     def optimize(self, penalty_coeff=0.0):
         """
@@ -204,6 +211,7 @@ class Prob(object):
         self._model.setObjective(obj)
         self._model.optimize()
         self._update_vars()
+        self._callback()
 
     def _del_old_grb_cnts(self):
         for cnt in self._grb_penalty_cnts:
