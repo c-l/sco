@@ -133,7 +133,19 @@ class Prob(object):
 
     def _quad_expr_to_grb_expr(self, quad_expr, var):
         x = var.get_grb_vars()
-        return 0.5*x.T.dot(quad_expr.Q.dot(x)) + quad_expr.A.dot(x) + quad_expr.b, []
+        grb_expr = grb.QuadExpr()
+        Q = quad_expr.Q
+        rows, cols = x.shape
+        assert cols == 1
+        for i in range(rows):
+            for j in range(rows):
+                if Q[i][j] != 0:
+                    grb_expr += Q[i][j]*x[i,0]*x[j,0]
+
+        grb_expr = np.array([[0.5*grb_expr]])
+        grb_expr = grb_expr + quad_expr.A.dot(x)
+        grb_expr = grb_expr + quad_expr.b
+        return grb_expr, []
 
     def _hinge_expr_to_grb_expr(self, hinge_expr, var):
         aff_expr = hinge_expr.expr
