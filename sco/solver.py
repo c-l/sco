@@ -17,12 +17,12 @@ class Solver(object):
         self.trust_shrink_ratio = .1
         self.trust_expand_ratio = 1.5
         self.cnt_tolerance = 1e-4
-        self.max_merit_coeff_increases = 5
+        self.max_merit_coeff_increases = 1
         self.merit_coeff_increase_ratio = 10
         self.initial_trust_region_size = 1
-        self.initial_penalty_coeff = 1.
+        self.initial_penalty_coeff = 1e3
 
-    def solve(self, prob, method=None):
+    def solve(self, prob, method=None, tol=None):
         """
         Returns whether solve succeeded.
 
@@ -30,6 +30,11 @@ class Solver(object):
         using specified method to find a solution. If the specified method
         doesn't exist, an exception is thrown.
         """
+        if tol is not None:
+            self.min_trust_region_size = tol
+            self.min_approx_improve = tol
+            self.cnt_tolerance = tol
+
         if method is "penalty_sqp":
             return self._penalty_sqp(prob)
         else:
