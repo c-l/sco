@@ -28,6 +28,9 @@ class Prob(object):
             adding the hinge and absolute value terms from the penalty terms.
         _pgm: Positive Gurobi variable manager provides a lazy way of generating
             positive Gurobi variables so that there are less model updates.
+
+        _bexpr_to_grb_expr: dictionary that caches quadratic bound expressions
+            with their corresponding Gurobi expression
         """
         self._model = grb_model
         self._model.params.OutputFlag = 0 # silences Gurobi output
@@ -50,6 +53,8 @@ class Prob(object):
         self._penalty_exprs = []
         self._grb_penalty_cnts = [] # hinge and abs value constraints
         self._pgm = PosGRBVarManager(self._model)
+
+        self._bexpr_to_grb_expr = {}
 
     def add_obj_expr(self, bound_expr):
         """
@@ -115,7 +120,12 @@ class Prob(object):
         if isinstance(expr, AffExpr):
             return self._aff_expr_to_grb_expr(expr, var)
         elif isinstance(expr, QuadExpr):
-            return self._quad_expr_to_grb_expr(expr, var)
+            if bound_expr in self._bexpr_to_grb_expr:
+                return self._bexpr_to_grb_expr[bound_expr], []
+            else:
+                grb_expr, cnts = self._quad_expr_to_grb_expr(expr, var)
+                self._bexpr_to_grb_expr[bound_expr] = grb_expr
+                return grb_expr, cnts
         elif isinstance(expr, HingeExpr):
             return self._hinge_expr_to_grb_expr(expr, var)
         elif isinstance(expr, AbsExpr):
