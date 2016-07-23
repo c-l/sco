@@ -1,3 +1,5 @@
 - Implement tests for caching gurobi expressions of QuadExprs
 - Implement tests for caching expr function evaluations
 - Implement tests for expr negation
+- Update test for find_closest_feasible_point (for Nans and quad objective)
+- Update test for tol argument for solver's solve method
