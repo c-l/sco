@@ -17,6 +17,7 @@ class Variable(object):
         _saved_value: saved value of this variable
         """
         assert isinstance(grb_vars, np.ndarray)
+        assert len(grb_vars) > 0
         self._grb_vars = grb_vars.copy()
         if value is not None:
             assert grb_vars.shape == value.shape
