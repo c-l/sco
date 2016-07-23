@@ -1,0 +1,2 @@
+- Implement tests for caching gurobi expressions of QuadExprs
+- Implement tests for caching expr function evaluations

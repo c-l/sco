@@ -23,8 +23,16 @@ class Expr(object):
         self._grad = grad
         self._hess = hess
 
+        self._cache = {}
+
     def eval(self, x):
-        return self.f(x)
+        flattened = tuple(x.round(5).flatten())
+
+        if flattened in self._cache:
+            return self._cache[flattened]
+        val = self.f(x)
+        self._cache[flattened] = val.copy()
+        return val
 
     def _get_flat_f(self, x):
         """

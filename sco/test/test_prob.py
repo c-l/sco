@@ -451,19 +451,27 @@ class TestProb(unittest.TestCase):
         prob.add_cnt_expr(bexpr)
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2,1]])
+        eq_expr.expr = f_expr
         eq_expr.val = np.array([[1,1]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 1.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2,-2]])
+        eq_expr.expr = f_expr
         eq_expr.val = np.array([[1,1]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 3.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2,-2]])
+        eq_expr.expr = f_expr
         eq_expr.val = np.array([[2, -2]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 0.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2, 0]])
+        eq_expr.expr = f_expr
         eq_expr.val = np.array([[2, -2]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
@@ -479,19 +487,27 @@ class TestProb(unittest.TestCase):
         prob.add_cnt_expr(bexpr)
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2,1]])
+        leq_expr.expr = f_expr
         leq_expr.val = np.array([[1,1]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 1.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2,-2]])
+        leq_expr.expr = f_expr
         leq_expr.val = np.array([[1,1]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 1.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2,-2]])
+        leq_expr.expr = f_expr
         leq_expr.val = np.array([[2, -2]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 0.0))
 
+        f_expr = Expr(f)
         f_expr.f = lambda x: np.array([[2, 0]])
+        leq_expr.expr = f_expr
         leq_expr.val = np.array([[2, -2]])
         self.assertTrue(np.allclose(prob.get_max_cnt_violation(), 2.0))
 
