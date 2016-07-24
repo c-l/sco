@@ -29,6 +29,9 @@ class Prob(object):
         _pgm: Positive Gurobi variable manager provides a lazy way of generating
             positive Gurobi variables so that there are less model updates.
 
+        _cnt_to_cvx: dictionary that maps constraint expressions to its
+            corresponding convex expression
+
         _bexpr_to_grb_expr: dictionary that caches quadratic bound expressions
             with their corresponding Gurobi expression
         """
@@ -54,7 +57,14 @@ class Prob(object):
         self._grb_penalty_cnts = [] # hinge and abs value constraints
         self._pgm = PosGRBVarManager(self._model)
 
+        self._cnt_to_cvx = {}
+
         self._bexpr_to_grb_expr = {}
+
+        # TODO: handle non-quadratic objectives for computing param value
+        self._grb_var_to_quad_obj_bexprs = {}
+        self._grb_var_to_nonlin_cnt_bexprs = {}
+        self._grb_var_to_penalty_cnt_bexprs = {}
 
     def add_obj_expr(self, bound_expr):
         """
@@ -68,6 +78,7 @@ class Prob(object):
         expr = bound_expr.expr
         if isinstance(expr, AffExpr) or isinstance(expr, QuadExpr):
             self._quad_obj_exprs.append(bound_expr)
+            self._add_bexpr_to_grb_var_to_obj_map(bound_expr)
         else:
             self._nonquad_obj_exprs.append(bound_expr)
         self._vars.add(bound_expr.var)
@@ -95,7 +106,26 @@ class Prob(object):
                 self._add_np_array_grb_cnt(grb_expr, GRB.LESS_EQUAL, comp_expr.val)
         else:
             self._nonlin_cnt_exprs.append(bound_expr)
+            self._add_bexpr_to_grb_var_to_nonlin_cnt_map(bound_expr)
         self._vars.add(var)
+
+    def _add_bexpr_to_grb_var_map(self, bexpr, mapping):
+        var = bexpr.var
+        grb_vars = var.get_grb_vars()
+        for grb_var in grb_vars.flat:
+            if grb_var not in mapping:
+                mapping[grb_var] = [bexpr]
+            else:
+                mapping[grb_var].append(bexpr)
+
+    def _add_bexpr_to_grb_var_to_obj_map(self, bexpr):
+        self._add_bexpr_to_grb_var_map(bexpr, self._grb_var_to_quad_obj_bexprs)
+
+    def _add_bexpr_to_grb_var_to_nonlin_cnt_map(self, bexpr):
+        self._add_bexpr_to_grb_var_map(bexpr, self._grb_var_to_nonlin_cnt_bexprs)
+
+    def _add_bexpr_to_grb_var_penalty_cnt_map(self, bexpr):
+        self._add_bexpr_to_grb_var_map(bexpr, self._grb_var_to_penalty_cnt_bexprs)
 
     def _add_np_array_grb_cnt(self, grb_exprs, sense, val):
         """
@@ -263,11 +293,18 @@ class Prob(object):
         (self._nonquad_obj_exprs) is saved in self._approx_obj_exprs.
         The penalty approximation of the non-linear constraints
         (self._nonlin_cnt_exprs) is saved in self._penalty_exprs
+        The map between constraint expressions to its convexified expressions
+        is updated.
         """
         self._approx_obj_exprs = [bexpr.convexify(degree = 2) \
             for bexpr in self._nonquad_obj_exprs]
-        self._penalty_exprs = [bexpr.convexify(degree = 1) \
-            for bexpr in self._nonlin_cnt_exprs]
+        self._penalty_exprs = []
+        self._grb_var_to_penalty_cnt_bexprs = {}
+        for bexpr in self._nonlin_cnt_exprs:
+            cvx_bexpr = bexpr.convexify(degree = 1)
+            self._add_bexpr_to_grb_var_penalty_cnt_map(cvx_bexpr)
+            self._cnt_to_cvx[bexpr] = cvx_bexpr
+            self._penalty_exprs.append(cvx_bexpr)
 
     def get_value(self, penalty_coeff):
         """
@@ -281,8 +318,7 @@ class Prob(object):
         for bound_expr in self._quad_obj_exprs + self._nonquad_obj_exprs:
             value += np.sum(bound_expr.eval())
         for bound_expr in self._nonlin_cnt_exprs:
-            cnt_vio = self._compute_cnt_violation(bound_expr)
-            value += penalty_coeff*np.sum(cnt_vio)
+            value += penalty_coeff*self._get_cnt_bexpr_value(bound_expr)
         return value
 
     def _compute_cnt_violation(self, bexpr):
@@ -321,8 +357,76 @@ class Prob(object):
         for bound_expr in self._quad_obj_exprs + self._approx_obj_exprs:
             value += np.sum(bound_expr.eval())
         for bound_expr in self._penalty_exprs:
-            value += penalty_coeff*np.sum(bound_expr.eval())
+            value += penalty_coeff*self._get_cnt_approx_bexpr_value(bound_expr)
         return value
+
+    def _get_cnt_bexpr_value(self, bexpr):
+        cnt_vio = self._compute_cnt_violation(bexpr)
+        return np.sum(cnt_vio)
+
+    def _get_cnt_approx_bexpr_value(self, cvx_bexpr):
+        return np.sum(cvx_bexpr.eval())
+
+    def get_cnt_values(self, penalty_coeff):
+        """
+        Returns a dictionary which maps the bound expressions of non-linear
+        constraints to its value (how much it's violated)
+        """
+        bexpr_to_val = {}
+        for bound_expr in self._nonlin_cnt_exprs:
+            bexpr_to_val[bound_expr] = penalty_coeff*self._get_cnt_bexpr_value(bound_expr)
+        return bexpr_to_val
+
+    def get_cnt_approx_values(self, penalty_coeff):
+        """
+        Returns a dictionary which maps the bound expressions of non-linear
+        constraints to its approximate value (how much it's violated)
+        """
+        bexpr_to_val = {}
+        for bexpr, cvx_bexpr in self._cnt_to_cvx.iteritems():
+            bexpr_to_val[bexpr] = penalty_coeff*self._get_cnt_approx_bexpr_value(cvx_bexpr)
+        return bexpr_to_val
+
+    def get_shared_cnt_values(self, penalty_coeff):
+        bexpr_to_val = {}
+        for bound_expr in self._nonlin_cnt_exprs:
+            val = 0.
+            for grb_var in bound_expr.var.get_grb_vars().flat:
+                # add in value of all the non-linear constraints which share the
+                # same Gurobi variable
+                nonlin_cnt_bexprs = self._grb_var_to_nonlin_cnt_bexprs[grb_var]
+                for be in nonlin_cnt_bexprs:
+                    val += penalty_coeff*self._get_cnt_bexpr_value(be)
+
+                # add in value of all the objectives which share the same
+                # Gurobi variable
+                if grb_var in self._grb_var_to_quad_obj_bexprs:
+                    obj_bexprs = self._grb_var_to_quad_obj_bexprs[grb_var]
+                    for be in obj_bexprs:
+                        val += np.sum(be.eval())
+            bexpr_to_val[bound_expr] = val
+        return bexpr_to_val
+
+    def get_shared_cnt_approx_values(self, penalty_coeff):
+        bexpr_to_val = {}
+        for bound_expr in self._nonlin_cnt_exprs:
+            val = 0.
+            for grb_var in bound_expr.var.get_grb_vars().flat:
+                # add in value of all the linear convexification of the
+                # non-linear constraints which share the same Gurobi variable
+                nonlin_cnt_bexprs = self._grb_var_to_nonlin_cnt_bexprs[grb_var]
+                penalty_cnt_bexprs = [self._cnt_to_cvx[be] for be in nonlin_cnt_bexprs]
+                for be in penalty_cnt_bexprs:
+                    val += penalty_coeff*self._get_cnt_approx_bexpr_value(be)
+
+                # add in value of all the objectives which share the same
+                # Gurobi variable
+                if grb_var in self._grb_var_to_quad_obj_bexprs:
+                    obj_bexprs = self._grb_var_to_quad_obj_bexprs[grb_var]
+                    for be in obj_bexprs:
+                        val += np.sum(be.eval())
+            bexpr_to_val[bound_expr] = val
+        return bexpr_to_val
 
     def _update_vars(self):
         """

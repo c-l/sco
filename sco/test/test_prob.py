@@ -25,6 +25,7 @@ class TestProb(unittest.TestCase):
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
+        model.update()
 
         bexpr_quad = BoundExpr(quad, var)
         bexpr_aff = BoundExpr(aff, var)
@@ -99,6 +100,7 @@ class TestProb(unittest.TestCase):
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
         var = Variable(grb_vars)
+        model.update()
 
         bexpr_quad = BoundExpr(quad, var)
         bexpr_aff = BoundExpr(aff, var)
@@ -122,6 +124,7 @@ class TestProb(unittest.TestCase):
         grb_var2 = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x2')
         grb_vars = np.array([[grb_var1], [grb_var2]])
         var = Variable(grb_vars)
+        model.update()
 
         bexpr_quad = BoundExpr(quad, var)
         prob.add_obj_expr(bexpr_quad)
