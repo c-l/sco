@@ -202,9 +202,21 @@ class Prob(object):
 
         self._model.setObjective(obj)
         self._model.optimize()
-        assert self._model.status == 2
+        if self._model.status != 2:
+            return False
+        
+        # if self._model.status == 3:
+        #     self._model.optimize()
+        # if self._model.status == 4:
+        #     self._model.computeIIS()
+        #     self._model.write('infeasible.ilp')
+        #     raise Exception('Failed to satisfy linear equalities. Infeasible Constraint set written to infeasible.ilp')
+        # elif self._model.status != 2:
+        #     self._model.write('infeasible.lp')
+        #     raise Exception('Failed to satisfy linear equalities. Infeasible Constraint set written to infeasible.lp')
         self._update_vars()
         self._callback()
+        return True
 
     def optimize(self, penalty_coeff=0.0):
         """

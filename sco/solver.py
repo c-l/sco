@@ -22,7 +22,7 @@ class Solver(object):
         self.initial_trust_region_size = 1
         self.initial_penalty_coeff = 1e3
 
-    def solve(self, prob, method=None, tol=None):
+    def solve(self, prob, method=None, tol=None, verbose=False):
         """
         Returns whether solve succeeded.
 
@@ -36,11 +36,11 @@ class Solver(object):
             self.cnt_tolerance = tol
 
         if method is "penalty_sqp":
-            return self._penalty_sqp(prob)
+            return self._penalty_sqp(prob, verbose=verbose)
         else:
             raise Exception("This method is not supported.")
 
-    def _penalty_sqp(self, prob):
+    def _penalty_sqp(self, prob, verbose=False):
         """
         Return true is the penalty sqp method succeeds.
         Uses Penalty Sequential Quadratic Programming to solve the problem
@@ -50,24 +50,28 @@ class Solver(object):
         trust_region_size = self.initial_trust_region_size
         penalty_coeff = self.initial_penalty_coeff
 
-        prob.find_closest_feasible_point()
+        if not prob.find_closest_feasible_point():
+            return False
 
         for i in range(self.max_merit_coeff_increases):
-            success = self._min_merit_fn(prob, penalty_coeff, trust_region_size)
-            print '\n'
+            success = self._min_merit_fn(prob, penalty_coeff, trust_region_size, verbose=verbose)
+            if verbose:
+                print '\n'
 
             if prob.get_max_cnt_violation() > self.cnt_tolerance:
                 penalty_coeff = penalty_coeff*self.merit_coeff_increase_ratio
                 trust_region_size = self.initial_trust_region_size
             else:
                 end = time.time()
-                print "sqp time: ", end-start
+                if verbose:
+                    print "sqp time: ", end-start
                 return success
         end = time.time()
-        print "sqp time: ", end-start
+        if verbose:
+            print "sqp time: ", end-start
         return False
 
-    def _min_merit_fn(self, prob, penalty_coeff, trust_region_size):
+    def _min_merit_fn(self, prob, penalty_coeff, trust_region_size, verbose=False):
         """
         Returns true if the merit function is minimized successfully.
         Minimize merit function for penalty sqp
@@ -75,14 +79,16 @@ class Solver(object):
         sqp_iter = 1
 
         while True:
-            print("  sqp_iter: {0}".format(sqp_iter))
+            if verbose:
+                print("  sqp_iter: {0}".format(sqp_iter))
 
             prob.convexify()
             merit = prob.get_value(penalty_coeff)
             prob.save()
 
             while True:
-                print("    trust region size: {0}".format(trust_region_size))
+                if verbose:
+                    print("    trust region size: {0}".format(trust_region_size))
 
                 prob.add_trust_region(trust_region_size)
                 prob.optimize(penalty_coeff)
@@ -93,32 +99,37 @@ class Solver(object):
                 approx_merit_improve = merit - model_merit
                 exact_merit_improve = merit - new_merit
                 merit_improve_ratio = exact_merit_improve / approx_merit_improve
-
-                print("      merit: {0}. model_merit: {1}. new_merit: {2}".format(merit, model_merit, new_merit))
-                print("      approx_merit_improve: {0}. exact_merit_improve: {1}. merit_improve_ratio: {2}".format(approx_merit_improve, exact_merit_improve, merit_improve_ratio))
+                if verbose:
+                    print("      merit: {0}. model_merit: {1}. new_merit: {2}".format(merit, model_merit, new_merit))
+                    print("      approx_merit_improve: {0}. exact_merit_improve: {1}. merit_improve_ratio: {2}".format(approx_merit_improve, exact_merit_improve, merit_improve_ratio))
 
                 if self._bad_model(approx_merit_improve):
-                    print("Approximate merit function got worse ({0})".format(approx_merit_improve))
-                    print("Either convexification is wrong to zeroth order, or you're in numerical trouble.")
+                    if verbose:
+                        print("Approximate merit function got worse ({0})".format(approx_merit_improve))
+                        print("Either convexification is wrong to zeroth order, or you're in numerical trouble.")
                     prob.restore()
                     return False
 
                 if self._y_converged(approx_merit_improve):
-                    print("Converged: y tolerance")
+                    if verbose:
+                        print("Converged: y tolerance")
                     prob.restore()
                     return True
 
                 if self._shrink_trust_region(exact_merit_improve, merit_improve_ratio):
                     prob.restore()
-                    print("Shrinking trust region")
+                    if verbose:
+                        print("Shrinking trust region")
                     trust_region_size = trust_region_size * self.trust_shrink_ratio
                 else:
-                    print("Growing trust region")
+                    if verbose:
+                        print("Growing trust region")
                     trust_region_size = trust_region_size * self.trust_expand_ratio
                     break #from trust region loop
 
                 if self._x_converged(trust_region_size):
-                    print("Converged: x tolerance")
+                    if verbose:
+                        print("Converged: x tolerance")
                     return True
 
             sqp_iter = sqp_iter + 1
