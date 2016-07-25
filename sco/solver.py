@@ -62,7 +62,7 @@ class Solver(object):
             success, violated_bexpr = self._min_merit_fn(prob, penalty_coeff, trust_region_size, early_converge)
             print '\n'
             if violated_bexpr is not None:
-                return False, violated_bexpr
+                return False
 
             if prob.get_max_cnt_violation() > self.cnt_tolerance:
                 penalty_coeff = penalty_coeff*self.merit_coeff_increase_ratio
@@ -70,10 +70,10 @@ class Solver(object):
             else:
                 end = time.time()
                 print "sqp time: ", end-start
-                return success, None
+                return success
         end = time.time()
         print "sqp time: ", end-start
-        return False, None
+        return False
 
 
     def _min_merit_fn(self, prob, penalty_coeff, trust_region_size, early_converge=False):
