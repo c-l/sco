@@ -2,6 +2,7 @@ import gurobipy as grb
 GRB = grb.GRB
 from expr import *
 from ipdb import set_trace as st
+from collections import defaultdict
 
 
 class Prob(object):
@@ -56,6 +57,10 @@ class Prob(object):
 
         self._bexpr_to_grb_expr = {}
 
+        ## group-id (str) -> cnt-set (set of constraints)
+        self._cnt_groups = defaultdict(set)
+        self._penalty_groups = []
+
     def add_obj_expr(self, bound_expr):
         """
         Adds a bound expression (bound_expr) to the objective. If the objective
@@ -72,7 +77,7 @@ class Prob(object):
             self._nonquad_obj_exprs.append(bound_expr)
         self._vars.add(bound_expr.var)
 
-    def add_cnt_expr(self, bound_expr):
+    def add_cnt_expr(self, bound_expr, group_ids=None):
         """
         Adds a bound expression (bound_expr) to the problem's constraints.
         If the constraint is linear, it is added directly to the model.
@@ -95,6 +100,12 @@ class Prob(object):
                 self._add_np_array_grb_cnt(grb_expr, GRB.LESS_EQUAL, comp_expr.val)
         else:
             self._nonlin_cnt_exprs.append(bound_expr)
+
+            if group_ids is None:
+                group_ids = ['all']
+            for gid in group_ids:
+                self._cnt_groups[gid].add(bound_expr)
+
         self._vars.add(var)
 
     def _add_np_array_grb_cnt(self, grb_exprs, sense, val):
@@ -280,15 +291,31 @@ class Prob(object):
             for bexpr in self._nonquad_obj_exprs]
         self._penalty_exprs = [bexpr.convexify(degree = 1) \
             for bexpr in self._nonlin_cnt_exprs]
+        self._penalty_groups = []
+        gids = sorted(self._cnt_groups.keys())
+        for gid in gids:
+            cur_bexprs = [bexpr.convexify(degree=1)
+                          for bexpr in self._cnt_groups[gid]]
+            self._penalty_groups.append(cur_bexprs)
 
-    def get_value(self, penalty_coeff):
+    def get_value(self, penalty_coeff, vectorize=False):
         """
         Returns the current value of the penalty objective.
         The penalty objective is computed by summing up all the values of the
         quadratic objective expressions (self._quad_obj_exprs), the
         non-quadratic objective expressions and the penalty coeff multiplied
         by the constraint violations (computed using _nonlin_cnt_exprs)
+
+        if vectorize=True, then this returns a vector of constraint
+        violations -- 1 per group id. 
         """
+        if vectorize:
+            gids = sorted(self._cnt_groups.keys())
+            value = np.zeros(len(gids))
+            for i, gid in enumerate(gids):
+                value[i] = np.sum([self._compute_cnt_violation(bexpr) 
+                                   for bexpr in self._cnt_groups[gid]])
+            return value
         value = 0.0
         for bound_expr in self._quad_obj_exprs + self._nonquad_obj_exprs:
             value += np.sum(bound_expr.eval())
@@ -320,7 +347,7 @@ class Prob(object):
             max_vio = np.maximum(max_vio, cnt_max_vio)
         return max_vio
 
-    def get_approx_value(self, penalty_coeff):
+    def get_approx_value(self, penalty_coeff, vectorize=False):
         """
         Returns the current value of the penalty QP approximation by summing
         up the expression values for the quadratic objective terms
@@ -328,12 +355,22 @@ class Prob(object):
         terms (_approx_obj_exprs) and the penalty terms (_penalty_exprs).
         Note that this approximate value is computed with respect to when the
         last convexification was performed.
+
+        if vectorize=True, then this returns a vector of constraint
+        violations -- 1 per group id. 
         """
+        if vectorize:
+            value = np.zeros(len(self._penalty_groups))
+            for i, bexprs in enumerate(self._penalty_groups):
+                value[i] = np.sum([bexpr.eval() for bexpr in bexprs])
+            return value
+
         value = 0.0
         for bound_expr in self._quad_obj_exprs + self._approx_obj_exprs:
             value += np.sum(bound_expr.eval())
         for bound_expr in self._penalty_exprs:
             value += penalty_coeff*np.sum(bound_expr.eval())
+        
         return value
 
     def _update_vars(self):

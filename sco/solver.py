@@ -1,5 +1,6 @@
 import time
 from ipdb import set_trace as st
+import numpy as np
 
 class Solver(object):
     """
@@ -84,6 +85,7 @@ class Solver(object):
 
             prob.convexify()
             merit = prob.get_value(penalty_coeff)
+            merit_vec = prob.get_value(penalty_coeff, True)
             prob.save()
 
             while True:
@@ -94,11 +96,22 @@ class Solver(object):
                 prob.optimize(penalty_coeff)
 
                 model_merit = prob.get_approx_value(penalty_coeff)
+                model_merit_vec = prob.get_approx_value(penalty_coeff, True)
                 new_merit = prob.get_value(penalty_coeff)
 
                 approx_merit_improve = merit - model_merit
+
+                ## we converge if one of the violated constraint groups 
+                ## is below the minimum improvement
+                approx_improve_vec = merit_vec - model_merit_vec
+                violated = merit_vec > self.cnt_tolerance
+                if approx_improve_vec.shape == (0,):
+                    approx_improve_vec = np.array([approx_merit_improve])
+                    violated = approx_improve_vec > -np.inf
+
                 exact_merit_improve = merit - new_merit
                 merit_improve_ratio = exact_merit_improve / approx_merit_improve
+
                 if verbose:
                     print("      merit: {0}. model_merit: {1}. new_merit: {2}".format(merit, model_merit, new_merit))
                     print("      approx_merit_improve: {0}. exact_merit_improve: {1}. merit_improve_ratio: {2}".format(approx_merit_improve, exact_merit_improve, merit_improve_ratio))
@@ -109,8 +122,14 @@ class Solver(object):
                         print("Either convexification is wrong to zeroth order, or you're in numerical trouble.")
                     prob.restore()
                     return False
-
-                if self._y_converged(approx_merit_improve):
+                
+                if not np.any(violated):
+                    converge_val = approx_merit_improve
+                else:
+                    ## we converge if one of the violated constraint groups 
+                    ## is below the minimum improvement
+                    converge_val = np.min(approx_improve_vec[violated])
+                if self._y_converged(converge_val):
                     if verbose:
                         print("Converged: y tolerance")
                     prob.restore()
