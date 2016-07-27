@@ -72,6 +72,7 @@ class Solver(object):
             print "sqp time: ", end-start
         return False
 
+    # @profile
     def _min_merit_fn(self, prob, penalty_coeff, trust_region_size, verbose=False):
         """
         Returns true if the merit function is minimized successfully.
@@ -123,16 +124,35 @@ class Solver(object):
                     prob.restore()
                     return False
                 
-                if not np.any(violated):
-                    converge_val = approx_merit_improve
-                else:
-                    ## we converge if one of the violated constraint groups 
-                    ## is below the minimum improvement
-                    converge_val = np.min(approx_improve_vec[violated])
-                if self._y_converged(converge_val):
+                if self._y_converged(approx_merit_improve):
                     if verbose:
                         print("Converged: y tolerance")
                     prob.restore()
+                    return True
+
+                ## we converge if one of the violated constraint groups 
+                ## is below the minimum improvement and none of its overlapping
+                ## groups are making progress
+                prob.nonconverged_groups = []
+                for gid, idx in prob.gid2ind.iteritems():
+                    if violated[idx] and approx_improve_vec[idx] < self.min_approx_improve:
+                        overlap_improve = False
+                        for gid2 in prob._cnt_groups_overlap[gid]:
+                            if approx_improve_vec[prob.gid2ind[gid2]] > self.min_approx_improve:
+                                overlap_improve = True
+                                break
+                        if overlap_improve:
+                            continue
+                        prob.nonconverged_groups.append(gid)
+                if len(prob.nonconverged_groups) > 0:
+                    if verbose:
+                        print("Converged: y tolerance")
+                    prob.restore()
+                    ## store the failed groups into the prob
+
+                    for i, g in enumerate(sorted(prob._cnt_groups.keys())):
+                        if violated[i] and self._y_converged(approx_improve_vec[i]):
+                            prob.nonconverged_groups.append(g)
                     return True
 
                 if self._shrink_trust_region(exact_merit_improve, merit_improve_ratio):

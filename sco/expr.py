@@ -23,15 +23,20 @@ class Expr(object):
         self._grad = grad
         self._hess = hess
 
-        self._cache = {}
+        self._eval_cache = {}
+        self._grad_cache = {}
+        self._convexify_cache = {}
+
+    def _get_key(self, x):
+        return tuple(x.round(5).flatten())
 
     def eval(self, x):
-        flattened = tuple(x.round(5).flatten())
+        key = self._get_key(x)
 
-        if flattened in self._cache:
-            return self._cache[flattened]
+        if key in self._eval_cache:
+            return self._eval_cache[key]
         val = self.f(x)
-        self._cache[flattened] = val.copy()
+        self._eval_cache[key] = val.copy()
         return val
 
     def _get_flat_f(self, x):
@@ -63,6 +68,9 @@ class Expr(object):
         """
         Returns the gradient. Can numerically check the gradient.
         """
+        key = self._get_key(x)
+        if key in self._grad_cache:
+            return self._grad_cache[key].copy()
         assert not num_check or self._grad is not None
         if self._grad is None:
             return self._num_grad(x)
@@ -72,6 +80,7 @@ class Expr(object):
             if not np.allclose(num_grad, gradient, atol=atol):
                 raise Exception("Numerical and analytical gradients aren't close. \
                     \nnum_grad: {0}\nana_grad: {1}\n".format(num_grad, gradient))
+        self._grad_cache[key] = gradient.copy()
         return gradient
 
     def _num_hess(self, x):
@@ -105,11 +114,17 @@ class Expr(object):
         quadratic approximation. If the hessian has negative eigenvalues, the
         hessian is adjusted so that it is positive semi-definite.
         """
+        key = self._get_key(x)
 
+        # this seems to create a bug for some reason
+        # if key in self._convexify_cache:
+        #     return self._convexify_cache[key]
+
+        res = None
         if degree == 1:
             A = self.grad(x)
             b = - A.dot(x) + self.eval(x)
-            return AffExpr(A, b)
+            res = AffExpr(A, b)
         elif degree == 2:
             hess = self.hess(x)
             eig_vals = eigvalsh(hess)
@@ -121,9 +136,11 @@ class Expr(object):
             Q = hess
             A = grad - np.transpose(x).dot(hess)
             b = 0.5*np.transpose(x).dot(hess).dot(x) - grad.dot(x) + self.eval(x)
-            return QuadExpr(Q, A, b)
+            res = QuadExpr(Q, A, b)
         else:
             raise NotImplementedError
+        # self._convexify_cache[key] = res
+        return res
 
 
 class AffExpr(Expr):

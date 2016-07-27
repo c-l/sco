@@ -59,7 +59,10 @@ class Prob(object):
 
         ## group-id (str) -> cnt-set (set of constraints)
         self._cnt_groups = defaultdict(set)
+        self._cnt_groups_overlap = defaultdict(set)
         self._penalty_groups = []
+        self.nonconverged_groups = []
+        self.gid2ind = {}
 
     def add_obj_expr(self, bound_expr):
         """
@@ -105,6 +108,9 @@ class Prob(object):
                 group_ids = ['all']
             for gid in group_ids:
                 self._cnt_groups[gid].add(bound_expr)
+                for other in group_ids:
+                    if other == gid: continue
+                    self._cnt_groups_overlap[gid].add(other)
 
         self._vars.add(var)
 
@@ -293,7 +299,9 @@ class Prob(object):
             for bexpr in self._nonlin_cnt_exprs]
         self._penalty_groups = []
         gids = sorted(self._cnt_groups.keys())
-        for gid in gids:
+        self.gid2ind = {}
+        for i, gid in enumerate(gids):
+            self.gid2ind[gid] = i
             cur_bexprs = [bexpr.convexify(degree=1)
                           for bexpr in self._cnt_groups[gid]]
             self._penalty_groups.append(cur_bexprs)
