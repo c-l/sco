@@ -114,11 +114,6 @@ class Expr(object):
         quadratic approximation. If the hessian has negative eigenvalues, the
         hessian is adjusted so that it is positive semi-definite.
         """
-        key = self._get_key(x)
-
-        # this seems to create a bug for some reason
-        # if key in self._convexify_cache:
-        #     return self._convexify_cache[key]
 
         res = None
         if degree == 1:
@@ -139,7 +134,6 @@ class Expr(object):
             res = QuadExpr(Q, A, b)
         else:
             raise NotImplementedError
-        # self._convexify_cache[key] = res
         return res
 
 
@@ -255,6 +249,7 @@ class CompExpr(Expr):
         """
         self.expr = expr
         self.val = val.copy()
+        self._convexify_cache = {}
 
     def eval(self, x, tol=DEFAULT_TOL):
         """
@@ -297,9 +292,17 @@ class EqExpr(CompExpr):
         The constraint h(x) = 0 becomes |h(x)|
         """
         assert degree == 1
+
+        key = self._get_key(x)
+        if key in self._convexify_cache:
+            return self._convexify_cache[key]
+
         aff_expr = self.expr.convexify(x, degree=1)
         aff_expr.b = aff_expr.b - self.val
-        return AbsExpr(aff_expr)
+        res =  AbsExpr(aff_expr)
+
+        self._convexify_cache[key] = res
+        return res
 
 class LEqExpr(CompExpr):
     """
@@ -328,9 +331,17 @@ class LEqExpr(CompExpr):
         The constraint g(x) <= 0 becomes |g(x)|+ where |g(x)|+ = max(g(x), 0)
         """
         assert degree == 1
+
+        key = self._get_key(x)
+        if key in self._convexify_cache:
+            return self._convexify_cache[key]
+
         aff_expr = self.expr.convexify(x, degree=1)
         aff_expr.b = aff_expr.b - self.val
-        return HingeExpr(aff_expr)
+        res =  HingeExpr(aff_expr)
+
+        self._convexify_cache[key] = res
+        return res
 
 class BoundExpr(object):
     """
