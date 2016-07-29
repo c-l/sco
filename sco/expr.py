@@ -64,6 +64,13 @@ class Expr(object):
         grad_fn = nd.Jacobian(self._get_flat_f(x))
         return grad_fn(x.flatten())
 
+    def _debug_grad(self, g1, g2, atol=DEFAULT_TOL):
+        for i, g_row in enumerate(g1):
+            for j, g in enumerate(g_row):
+                if not np.allclose(g, g2[i,j], atol=atol):
+                    print "{}, {}".format(i,j)
+                    print g, g2[i, j]
+
     def grad(self, x, num_check=False, atol=DEFAULT_TOL):
         """
         Returns the gradient. Can numerically check the gradient.
@@ -78,6 +85,7 @@ class Expr(object):
         if num_check:
             num_grad = self._num_grad(x)
             if not np.allclose(num_grad, gradient, atol=atol):
+                self._debug_grad(gradient, num_grad, atol=atol)
                 raise Exception("Numerical and analytical gradients aren't close. \
                     \nnum_grad: {0}\nana_grad: {1}\n".format(num_grad, gradient))
         self._grad_cache[key] = gradient.copy()
