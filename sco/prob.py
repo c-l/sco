@@ -297,10 +297,7 @@ class Prob(object):
             grb_exprs.extend(grb_expr.flatten().tolist())
 
         for i, bound_expr in enumerate(self._penalty_exprs):
-            try:
-                grb_expr = self._update_nonlin_cnt(bound_expr, i).flatten()
-            except IndexError:
-                continue
+            grb_expr = self._update_nonlin_cnt(bound_expr, i).flatten()
             grb_exprs.extend(grb_expr*penalty_coeff)
 
         obj = grb.quicksum(grb_exprs)
@@ -335,12 +332,20 @@ class Prob(object):
             cnts = self._grb_penalty_cnts[ind]
             grb_expr = self._grb_penalty_exprs[ind]
             grb_vars = var.get_grb_vars()
+            nz = np.nonzero(A)
+            
             for i in range(A.shape[0]):
                 for j in range(A.shape[1]):
-                    self._model.chgCoeff(cnts[i], grb_vars[j, 0], A[i, j])
+                    ## first reset to 0
+                    self._model.chgCoeff(cnts[i], grb_vars[j, 0], 0)
                 ## add negative b to rhs because it
                 ## changes sides of the ineq/eq
                 cnts[i].setAttr('rhs', -b[i, 0])
+                
+            ## then set the non-zero values
+            for idx in range(nz[0].shape[0]):
+                i, j = nz[0][idx], nz[1][idx]
+                self._model.chgCoeff(cnts[i], grb_vars[j, 0], A[i, j])
             return grb_expr
         else:
             raise NotImplementedError
@@ -391,7 +396,7 @@ class Prob(object):
             gids = sorted(self._cnt_groups.keys())
             value = np.zeros(len(gids))
             for i, gid in enumerate(gids):
-                value[i] = np.sum(np.sum([self._compute_cnt_violation(bexpr) 
+                value[i] = np.sum(np.sum([np.sum(self._compute_cnt_violation(bexpr))
                                           for bexpr in self._cnt_groups[gid]]))
             return value
         value = 0.0
@@ -441,7 +446,8 @@ class Prob(object):
         if vectorize:
             value = np.zeros(len(self._penalty_groups))
             for i, bexprs in enumerate(self._penalty_groups):
-                value[i] = np.sum(np.sum([bexpr.eval() for bexpr in bexprs]))
+                x = np.array([np.sum(bexpr.eval()) for bexpr in bexprs])
+                value[i] = np.sum(x.flatten())
             return value
 
         value = 0.0
