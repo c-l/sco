@@ -11,6 +11,8 @@ hess, and convexify method. Variables and values are assumed to be 2D numpy
 arrays.
 """
 
+N_DIGS = 5
+
 
 class Expr(object):
 
@@ -28,7 +30,7 @@ class Expr(object):
         self._convexify_cache = {}
 
     def _get_key(self, x):
-        return tuple(x.round(5).flatten())
+        return tuple(x.round(N_DIGS).flatten())
 
     def eval(self, x):
         key = self._get_key(x)

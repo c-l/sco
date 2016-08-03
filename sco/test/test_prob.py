@@ -109,6 +109,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(bexpr_quad in prob._quad_obj_exprs)
         self.assertTrue(var in prob._vars)
 
+        prob.update_obj(penalty_coeff=0)
         prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[2.0]])))
 
@@ -129,6 +130,7 @@ class TestProb(unittest.TestCase):
         self.assertTrue(bexpr_quad in prob._quad_obj_exprs)
         self.assertTrue(var in prob._vars)
 
+        prob.update_obj(penalty_coeff=0)
         prob.optimize()
         var_value = var.get_value()
         value = np.zeros((2,1))
@@ -358,11 +360,13 @@ class TestProb(unittest.TestCase):
 
         prob.optimize() # needed to set an initial value
         prob.convexify()
-        prob.optimize(penalty_coeff=1.0)
+        prob.update_obj(penalty_coeff=1.0)
+        prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[0.5]])))
         self.assertTrue(np.allclose(prob.get_value(1.0), np.array([[3.75]])))
 
-        prob.optimize(penalty_coeff=2.0)
+        prob.update_obj(penalty_coeff=2.0)
+        prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[1.0]])))
         self.assertTrue(np.allclose(prob.get_value(2.0), np.array([[7]])))
 
@@ -396,11 +400,13 @@ class TestProb(unittest.TestCase):
 
         prob.optimize() # needed to set an initial value
         prob.convexify()
-        prob.optimize(penalty_coeff=1.0)
+        prob.update_obj(penalty_coeff=1.0)
+        prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[0.5]])))
         self.assertTrue(np.allclose(prob.get_approx_value(1.0), np.array([[3.75]])))
 
-        prob.optimize(penalty_coeff=2.0)
+        prob.update_obj(penalty_coeff=2.0)
+        prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[1.0]])))
         self.assertTrue(np.allclose(prob.get_approx_value(2.0), np.array([[7]])))
 
@@ -424,7 +430,7 @@ class TestProb(unittest.TestCase):
 
         grb_var = model.addVar(lb=-1 * GRB.INFINITY, ub=GRB.INFINITY, name='x')
         grb_vars = np.array([[grb_var]])
-        var = Variable(grb_vars)
+        var = Variable(grb_vars, np.array([[1.0]]))
         model.update()
 
         obj = BoundExpr(quad, var)
@@ -432,9 +438,9 @@ class TestProb(unittest.TestCase):
         bexpr = BoundExpr(eq, var)
         prob.add_cnt_expr(bexpr)
 
-        prob.optimize() # needed to set an initial value
         prob.convexify()
-        prob.optimize(penalty_coeff=0.5)
+        prob.update_obj(penalty_coeff=0.5)
+        prob.optimize()
         self.assertTrue(np.allclose(var.get_value(), np.array([[1.5]])))
         self.assertTrue(np.allclose(prob.get_approx_value(0.5), np.array([[1.25]])))
         self.assertTrue(np.allclose(prob.get_value(0.5), np.array([[1.125]])))

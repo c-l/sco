@@ -50,6 +50,11 @@ class Prob(object):
         # linear constraints are added directly to the model so there's no
         # need for a _lin_cnt_exprs variable
         self._nonlin_cnt_exprs = []
+        
+        # list of constraints that will hold the hinge constraints
+        # for each non-linear constraint, is a pair of constraints
+        # for an eq constraint
+        self.hinge_created = False
 
         self._penalty_exprs = []
         self._grb_penalty_cnts = [] # hinge and abs value constraints
@@ -103,6 +108,7 @@ class Prob(object):
                 self._add_np_array_grb_cnt(grb_expr, GRB.LESS_EQUAL, comp_expr.val)
         else:
             self._nonlin_cnt_exprs.append(bound_expr)
+            self._reset_hinge_cnts()
 
             if group_ids is None:
                 group_ids = ['all']
@@ -114,6 +120,11 @@ class Prob(object):
 
         self._vars.add(var)
 
+    def _reset_hinge_cnts(self):
+        ## reset the hinge_cnts
+        self.hinge_created=False
+
+    #@profile
     def _add_np_array_grb_cnt(self, grb_exprs, sense, val):
         """
         Adds a numpy array of Gurobi constraints to the model and returns
@@ -124,6 +135,7 @@ class Prob(object):
             cnts.append(self._model.addConstr(grb_expr, sense, val[index]))
         return cnts
 
+    #@profile
     def _expr_to_grb_expr(self, bound_expr):
         """
         Translates AffExpr, QuadExpr, HingeExpr and AbsExpr to Gurobi
@@ -154,26 +166,41 @@ class Prob(object):
             raise Exception("This type of Expression cannot be converted to\
                 a Gurobi expression.")
 
+    #@profile
     def _aff_expr_to_grb_expr(self, aff_expr, var):
         grb_var = var.get_grb_vars()
-        return aff_expr.A.dot(grb_var) + aff_expr.b, []
+        grb_exprs = []
+        A = aff_expr.A
+        b = aff_expr.b
+        for i in range(A.shape[0]):
+            grb_expr = grb.LinExpr()
+            inds, = np.nonzero(A[i, :])
+            grb_expr += b[i]
+            grb_expr.addTerms(A[i, inds].tolist(), grb_var[inds, 0].tolist())
+            grb_exprs.append([grb_expr])
+        return np.array(grb_exprs), []
 
+    # #@profile
     def _quad_expr_to_grb_expr(self, quad_expr, var):
         x = var.get_grb_vars()
         grb_expr = grb.QuadExpr()
         Q = quad_expr.Q
         rows, cols = x.shape
         assert cols == 1
-        for i in range(rows):
-            for j in range(rows):
-                if Q[i][j] != 0:
-                    grb_expr += Q[i][j]*x[i,0]*x[j,0]
-
-        grb_expr = np.array([[0.5*grb_expr]])
-        grb_expr = grb_expr + quad_expr.A.dot(x)
+        inds = np.nonzero(Q)
+        coeffs = 0.5*Q[inds]
+        v1 = x[inds[0], 0]
+        v2 = x[inds[1], 0]
+        grb_expr.addTerms(coeffs.tolist(), v1.tolist(), v2.tolist())
+        inds = np.nonzero(quad_expr.A)
+        coeffs = quad_expr.A[inds]
+        v1 = x[inds[1], 0]
+        grb_expr.addTerms(coeffs.tolist(), v1.tolist())
         grb_expr = grb_expr + quad_expr.b
-        return grb_expr, []
+        return np.array([[grb_expr]]), []
 
+
+    #@profile
     def _hinge_expr_to_grb_expr(self, hinge_expr, var):
         aff_expr = hinge_expr.expr
         assert isinstance(aff_expr, AffExpr)
@@ -209,13 +236,13 @@ class Prob(object):
                     if not np.isnan(val[i]):
                         obj += g_var[i]*g_var[i] - 2*val[i]*g_var[i] + val[i]*val[i]
 
-        grb_exprs = []
-        for bound_expr in self._quad_obj_exprs:
-            grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
-            self._grb_penalty_cnts.extend(grb_cnts)
-            grb_exprs.extend(grb_expr.flatten().tolist())
+        # grb_exprs = []
+        # for bound_expr in self._quad_obj_exprs:
+        #     grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
+        #     self._grb_penalty_cnts.extend(grb_cnts)
+        #     grb_exprs.extend(grb_expr.flatten().tolist())
 
-        obj += grb.quicksum(grb_exprs)
+        # obj += grb.quicksum(grb_exprs)
 
         self._model.setObjective(obj)
         self._model.optimize()
@@ -235,7 +262,8 @@ class Prob(object):
         self._callback()
         return True
 
-    def optimize(self, penalty_coeff=0.0):
+
+    def optimize(self):
         """
         Calls the Gurobi optimizer on the current QP approximation with a given
         penalty coefficient.
@@ -253,30 +281,69 @@ class Prob(object):
         The Gurobi constraints are the linear constraints which have already
         been added to the model when constraints were added to this problem.
         """
-        self._del_old_grb_cnts()
-        self._model.update()
-
-        grb_exprs = []
-        for bound_expr in self._quad_obj_exprs + self._approx_obj_exprs:
-            grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
-            self._grb_penalty_cnts.extend(grb_cnts)
-            grb_exprs.extend(grb_expr.flatten().tolist())
-
-        for bound_expr in self._penalty_exprs:
-            grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
-            grb_expr *= penalty_coeff
-            self._grb_penalty_cnts.extend(grb_cnts)
-            grb_exprs.extend(grb_expr.flatten().tolist())
-
-        obj = grb.quicksum(grb_exprs)
-        self._model.setObjective(obj)
         self._model.optimize()
         self._update_vars()
         self._callback()
 
+
+    # @profile
+    def update_obj(self, penalty_coeff=0.0):
+        self._lazy_spawn_grb_cnts()
+
+        grb_exprs = []
+        for bound_expr in self._quad_obj_exprs + self._approx_obj_exprs:
+            grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
+            # self._grb_penalty_cnts.extend(grb_cnts)
+            grb_exprs.extend(grb_expr.flatten().tolist())
+
+        for i, bound_expr in enumerate(self._penalty_exprs):
+            try:
+                grb_expr = self._update_nonlin_cnt(bound_expr, i).flatten()
+            except IndexError:
+                continue
+            grb_exprs.extend(grb_expr*penalty_coeff)
+
+        obj = grb.quicksum(grb_exprs)
+        self._model.setObjective(obj)
+        self._model.update()
+
     def _del_old_grb_cnts(self):
         for cnt in self._grb_penalty_cnts:
             self._model.remove(cnt)
+        self.hinge_created = False
+
+    def _lazy_spawn_grb_cnts(self):
+        if self.hinge_created:
+            return
+        self._del_old_grb_cnts()
+        self._grb_penalty_cnts = []
+        self._grb_penalty_exprs = []
+        for bound_expr in self._penalty_exprs:
+            grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
+            self._grb_penalty_cnts.append(grb_cnts)
+            self._grb_penalty_exprs.append(grb_expr)
+        self._model.update()
+        self.hinge_created = True
+
+    # @profile
+    def _update_nonlin_cnt(self, bexpr, ind):
+        expr, var = bexpr.expr, bexpr.var
+        if isinstance(expr, HingeExpr) or isinstance(expr, AbsExpr):
+            aff_expr = expr.expr
+            assert isinstance(aff_expr, AffExpr)
+            A, b = aff_expr.A, aff_expr.b
+            cnts = self._grb_penalty_cnts[ind]
+            grb_expr = self._grb_penalty_exprs[ind]
+            grb_vars = var.get_grb_vars()
+            for i in range(A.shape[0]):
+                for j in range(A.shape[1]):
+                    self._model.chgCoeff(cnts[i], grb_vars[j, 0], A[i, j])
+                ## add negative b to rhs because it
+                ## changes sides of the ineq/eq
+                cnts[i].setAttr('rhs', -b[i, 0])
+            return grb_expr
+        else:
+            raise NotImplementedError
 
     def add_trust_region(self, trust_region_size):
         """
@@ -285,6 +352,8 @@ class Prob(object):
         for var in self._vars:
             var.add_trust_region(trust_region_size)
 
+
+    # @profile
     def convexify(self):
         """
         Convexifies the optimization problem by computing a QP approximation
@@ -306,6 +375,7 @@ class Prob(object):
                           for bexpr in self._cnt_groups[gid]]
             self._penalty_groups.append(cur_bexprs)
 
+    # #@profile
     def get_value(self, penalty_coeff, vectorize=False):
         """
         Returns the current value of the penalty objective.
@@ -321,17 +391,18 @@ class Prob(object):
             gids = sorted(self._cnt_groups.keys())
             value = np.zeros(len(gids))
             for i, gid in enumerate(gids):
-                value[i] = np.sum([self._compute_cnt_violation(bexpr) 
-                                   for bexpr in self._cnt_groups[gid]])
+                value[i] = np.sum(np.sum([self._compute_cnt_violation(bexpr) 
+                                          for bexpr in self._cnt_groups[gid]]))
             return value
         value = 0.0
         for bound_expr in self._quad_obj_exprs + self._nonquad_obj_exprs:
-            value += np.sum(bound_expr.eval())
+            value += np.sum(np.sum(bound_expr.eval()))
         for bound_expr in self._nonlin_cnt_exprs:
             cnt_vio = self._compute_cnt_violation(bound_expr)
             value += penalty_coeff*np.sum(cnt_vio)
         return value
 
+    #@profile
     def _compute_cnt_violation(self, bexpr):
         comp_expr = bexpr.expr
         var_val = bexpr.var.get_value()
@@ -370,12 +441,12 @@ class Prob(object):
         if vectorize:
             value = np.zeros(len(self._penalty_groups))
             for i, bexprs in enumerate(self._penalty_groups):
-                value[i] = np.sum([bexpr.eval() for bexpr in bexprs])
+                value[i] = np.sum(np.sum([bexpr.eval() for bexpr in bexprs]))
             return value
 
         value = 0.0
         for bound_expr in self._quad_obj_exprs + self._approx_obj_exprs:
-            value += np.sum(bound_expr.eval())
+            value += np.sum(np.sum(bound_expr.eval()))
         for bound_expr in self._penalty_exprs:
             value += penalty_coeff*np.sum(bound_expr.eval())
         
@@ -440,6 +511,7 @@ class PosGRBVarManager(object):
         self._index += 1
         return self._grb_vars[self._index-1]
 
+    #@profile
     def get_array(self, shape):
         """
         Returns a numpy array of unused positive Gurobi variables.

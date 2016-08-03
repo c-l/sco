@@ -19,7 +19,7 @@ class Solver(object):
         self.trust_expand_ratio = 1.5
         self.cnt_tolerance = 1e-4
         self.max_merit_coeff_increases = 1
-        self.merit_coeff_increase_ratio = 10
+        self.merit_coeff_increase_ratio = 1e1
         self.initial_trust_region_size = 1
         self.initial_penalty_coeff = 1e3
 
@@ -40,7 +40,8 @@ class Solver(object):
             return self._penalty_sqp(prob, verbose=verbose)
         else:
             raise Exception("This method is not supported.")
-
+        
+    # @profile
     def _penalty_sqp(self, prob, verbose=False):
         """
         Return true is the penalty sqp method succeeds.
@@ -85,6 +86,7 @@ class Solver(object):
                 print("  sqp_iter: {0}".format(sqp_iter))
 
             prob.convexify()
+            prob.update_obj(penalty_coeff)
             merit = prob.get_value(penalty_coeff)
             merit_vec = prob.get_value(penalty_coeff, True)
             prob.save()
@@ -94,7 +96,7 @@ class Solver(object):
                     print("    trust region size: {0}".format(trust_region_size))
 
                 prob.add_trust_region(trust_region_size)
-                prob.optimize(penalty_coeff)
+                prob.optimize()
 
                 model_merit = prob.get_approx_value(penalty_coeff)
                 model_merit_vec = prob.get_approx_value(penalty_coeff, True)
