@@ -320,7 +320,7 @@ class Prob(object):
             grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
             self._grb_penalty_cnts.append(grb_cnts)
             self._grb_penalty_exprs.append(grb_expr)
-            self._grb_nz.append(np.nonzero(bound_expr.expr.A))
+            self._grb_nz.append(np.nonzero(bound_expr.expr.expr.A))
         self._model.update()
         self.hinge_created = True
 
