@@ -315,10 +315,12 @@ class Prob(object):
         self._del_old_grb_cnts()
         self._grb_penalty_cnts = []
         self._grb_penalty_exprs = []
+        self._grb_nz = []
         for bound_expr in self._penalty_exprs:
             grb_expr, grb_cnts = self._expr_to_grb_expr(bound_expr)
             self._grb_penalty_cnts.append(grb_cnts)
             self._grb_penalty_exprs.append(grb_expr)
+            self._grb_nz.append(np.nonzero(bound_expr.expr.A))
         self._model.update()
         self.hinge_created = True
 
@@ -331,21 +333,26 @@ class Prob(object):
             A, b = aff_expr.A, aff_expr.b
             cnts = self._grb_penalty_cnts[ind]
             grb_expr = self._grb_penalty_exprs[ind]
+            old_nz = self._grb_nz[ind]
             grb_vars = var.get_grb_vars()
             nz = np.nonzero(A)
             
             for i in range(A.shape[0]):
-                for j in range(A.shape[1]):
-                    ## first reset to 0
-                    self._model.chgCoeff(cnts[i], grb_vars[j, 0], 0)
                 ## add negative b to rhs because it
                 ## changes sides of the ineq/eq
                 cnts[i].setAttr('rhs', -b[i, 0])
+
+            for idx in range(old_nz[0].shape[0]):
+                i, j = old_nz[0][idx], old_nz[1][idx]
+                self._model.chgCoeff(cnts[i], grb_vars[j, 0], 0)
+
                 
             ## then set the non-zero values
             for idx in range(nz[0].shape[0]):
                 i, j = nz[0][idx], nz[1][idx]
                 self._model.chgCoeff(cnts[i], grb_vars[j, 0], A[i, j])
+
+            self._grb_nz[ind] = nz
             return grb_expr
         else:
             raise NotImplementedError
